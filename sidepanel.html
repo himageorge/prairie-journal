@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PL Journal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;1,9..144,300&display=swap" rel="stylesheet">
+<style>
+/* ── RESET & BASE ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:        #f5f2ec;
+  --panel:     #fefdfa;
+  --sidebar:   #1e2328;
+  --sb-hover:  #2a3038;
+  --sb-active: #2e3a28;
+  --sb-border: #2f353d;
+  --accent:    #4a7c59;
+  --accent2:   #6aab80;
+  --accent-lt: #ddf0e3;
+  --gold:      #c89b3c;
+  --gold-lt:   #fef6e0;
+  --red:       #c0392b;
+  --red-lt:    #fdecea;
+  --text:      #1a1e24;
+  --text2:     #4a5568;
+  --text3:     #8a97a8;
+  --sb-text:   #c8d0da;
+  --sb-text2:  #7a8798;
+  --sb-text3:  #4a5568;
+  --border:    #ddd8cf;
+  --border2:   #e8e3da;
+  --mono:      'JetBrains Mono', monospace;
+  --serif:     'Fraunces', serif;
+  --radius:    6px;
+  --radius2:   10px;
+  --transition: 0.22s cubic-bezier(0.4,0,0.2,1);
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  font-family: var(--mono);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow: hidden;
+}
+
+/* ── SHELL ── */
+.shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+}
+
+/* ── TITLEBAR ── */
+.titlebar {
+  background: var(--sidebar);
+  border-bottom: 1px solid var(--sb-border);
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  gap: 10px;
+  height: 44px;
+  flex-shrink: 0;
+  user-select: none;
+}
+.logo-mark {
+  width: 26px; height: 26px;
+  background: var(--accent);
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; color: #fff;
+  box-shadow: 0 0 10px rgba(74,124,89,0.4);
+  flex-shrink: 0;
+}
+.logo-text { flex: 1; }
+.logo-name {
+  font-family: var(--serif);
+  font-size: 13px; font-weight: 500; color: #fff;
+  letter-spacing: -0.2px; display: block; line-height: 1.2;
+}
+.logo-sub {
+  font-family: var(--mono);
+  font-size: 9px; color: var(--sb-text2);
+  letter-spacing: 1px; text-transform: uppercase;
+}
+.sync-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent2);
+  box-shadow: 0 0 6px rgba(106,171,128,0.6);
+  animation: pulse 2s infinite; flex-shrink: 0;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+/* ── CONTEXT BAR ── */
+.context-bar {
+  background: var(--sidebar);
+  border-bottom: 1px solid var(--sb-border);
+  padding: 8px 14px;
+  flex-shrink: 0;
+}
+.context-bar-label {
+  font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--sb-text3); margin-bottom: 6px;
+}
+.context-chips {
+  display: flex; gap: 4px; flex-wrap: wrap;
+}
+.ctx-chip {
+  font-size: 10px; font-family: var(--mono);
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 4px; padding: 2px 7px; color: var(--sb-text2);
+  transition: all var(--transition);
+}
+.ctx-chip.filled {
+  background: var(--sb-active);
+  border-color: rgba(74,124,89,0.4);
+  color: #aee6b8;
+}
+.ctx-chip.editable {
+  cursor: pointer;
+}
+.ctx-chip.editable:hover {
+  background: var(--sb-hover);
+  color: var(--sb-text);
+}
+
+/* ── TAB BAR ── */
+.tab-bar {
+  display: flex; gap: 0;
+  background: var(--sidebar);
+  border-bottom: 1px solid var(--sb-border);
+  flex-shrink: 0;
+}
+.tab {
+  flex: 1; padding: 9px 8px;
+  font-size: 11px; font-family: var(--mono);
+  color: var(--sb-text3); cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all var(--transition);
+  text-align: center;
+  letter-spacing: 0.3px;
+}
+.tab:hover { color: var(--sb-text); background: var(--sb-hover); }
+.tab.active { color: #aee6b8; border-bottom-color: var(--accent); background: var(--sb-active); }
+
+/* ── SCROLLABLE BODY ── */
+.tab-body {
+  flex: 1; overflow-y: auto;
+  display: none;
+}
+.tab-body.active { display: flex; flex-direction: column; }
+.tab-body::-webkit-scrollbar { width: 4px; }
+.tab-body::-webkit-scrollbar-track { background: transparent; }
+.tab-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+/* ── WRITE TAB ── */
+.write-section { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+
+.field-label {
+  font-size: 10px; color: var(--text3);
+  letter-spacing: 0.5px; margin-bottom: 4px;
+  display: flex; align-items: center; gap: 5px;
+}
+.field-label .emoji { font-size: 11px; }
+
+.field-textarea {
+  width: 100%;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 9px 11px;
+  font-family: var(--mono);
+  font-size: 12px; color: var(--text);
+  resize: vertical; min-height: 72px;
+  outline: none; line-height: 1.6;
+  transition: border-color var(--transition);
+}
+.field-textarea:focus { border-color: var(--accent); }
+.field-textarea.short { min-height: 44px; }
+
+/* SELECTORS ROW */
+.selectors-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.sel-wrap { display: flex; flex-direction: column; gap: 3px; }
+.sel-label { font-size: 9px; color: var(--text3); letter-spacing: 0.5px; }
+.ctx-select {
+  width: 100%;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 5px 8px;
+  font-family: var(--mono);
+  font-size: 11px; color: var(--text2);
+  outline: none;
+  transition: border-color var(--transition);
+  cursor: pointer;
+}
+.ctx-select:focus { border-color: var(--accent); }
+
+/* SCREENSHOT AREA */
+.screenshot-area { display: flex; flex-direction: column; gap: 6px; }
+.screenshot-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-family: var(--mono); font-size: 11px; color: var(--text2);
+  cursor: pointer; transition: all var(--transition);
+  width: 100%;
+}
+.screenshot-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-lt); }
+.screenshot-btn .icon { font-size: 13px; }
+.screenshot-preview {
+  width: 100%; border-radius: var(--radius);
+  border: 1px solid var(--border);
+  display: none;
+}
+.screenshot-preview.visible { display: block; }
+
+/* ACTION BUTTONS */
+.action-row {
+  display: flex; gap: 8px;
+  padding: 0 14px 14px;
+  flex-shrink: 0;
+}
+.btn {
+  flex: 1; padding: 9px 14px;
+  border-radius: var(--radius);
+  font-family: var(--mono); font-size: 12px;
+  cursor: pointer; transition: all var(--transition);
+  font-weight: 500; letter-spacing: 0.2px;
+}
+.btn-primary {
+  background: var(--accent); border: 1px solid var(--accent); color: #fff;
+}
+.btn-primary:hover { background: #3d6649; border-color: #3d6649; }
+.btn-primary:active { transform: scale(0.98); }
+.btn-secondary {
+  background: var(--panel); border: 1px solid var(--border); color: var(--text2);
+}
+.btn-secondary:hover { border-color: var(--text3); color: var(--text); }
+
+/* ── RECENT TAB ── */
+.recent-section { padding: 14px; flex: 1; }
+.recent-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.recent-title { font-size: 11px; font-weight: 600; color: var(--text); }
+.recent-count {
+  font-size: 10px; font-family: var(--mono);
+  background: var(--accent-lt); border: 1px solid rgba(74,124,89,0.2);
+  border-radius: 10px; padding: 1px 8px; color: var(--accent);
+}
+
+.entry-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius2);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.entry-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 10px rgba(74,124,89,0.08);
+}
+.entry-path {
+  font-size: 9px; color: var(--text3); font-family: var(--mono);
+  margin-bottom: 4px; letter-spacing: 0.3px;
+}
+.entry-preview {
+  font-size: 12px; color: var(--text2); line-height: 1.5;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-bottom: 5px;
+}
+.entry-footer {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.entry-date { font-size: 9px; color: var(--text3); font-family: var(--mono); }
+.entry-tags { display: flex; gap: 4px; }
+.entry-tag {
+  font-size: 9px; background: var(--accent-lt);
+  border: 1px solid rgba(74,124,89,0.2);
+  border-radius: 10px; padding: 1px 7px; color: var(--accent);
+}
+.empty-state {
+  padding: 32px 16px; text-align: center; color: var(--text3);
+}
+.empty-icon { font-size: 32px; margin-bottom: 10px; opacity: 0.4; }
+.empty-msg { font-size: 12px; line-height: 1.6; }
+
+/* ── DETAIL VIEW ── */
+#detailView {
+  display: none;
+  flex-direction: column;
+  height: 100%;
+}
+#detailView.active { display: flex; }
+.detail-header {
+  background: var(--sidebar);
+  border-bottom: 1px solid var(--sb-border);
+  padding: 10px 14px;
+  display: flex; align-items: center; gap: 8px;
+  flex-shrink: 0;
+}
+.detail-back {
+  background: none; border: none; cursor: pointer;
+  color: var(--sb-text2); font-size: 16px; line-height: 1;
+  padding: 0 4px; transition: color var(--transition);
+}
+.detail-back:hover { color: var(--sb-text); }
+.detail-title { font-family: var(--mono); font-size: 12px; color: var(--sb-text); flex: 1; }
+.detail-date { font-size: 9px; color: var(--sb-text3); font-family: var(--mono); }
+
+.detail-body { flex: 1; overflow-y: auto; padding: 14px; }
+.detail-body::-webkit-scrollbar { width: 4px; }
+.detail-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+.detail-path {
+  display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 14px;
+}
+.detail-chip {
+  font-size: 10px; font-family: var(--mono);
+  background: var(--accent-lt); border: 1px solid rgba(74,124,89,0.2);
+  border-radius: 4px; padding: 2px 8px; color: var(--accent);
+}
+.detail-sep { font-size: 10px; color: var(--border); align-self: center; }
+
+.detail-section-label {
+  font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--text3); margin-bottom: 6px;
+}
+.detail-text-block {
+  background: var(--panel);
+  border: 1px solid var(--border2);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  font-size: 12px; color: var(--text); line-height: 1.7;
+  font-family: var(--mono);
+  margin-bottom: 12px;
+  white-space: pre-wrap;
+}
+.detail-note-block {
+  background: var(--gold-lt);
+  border: 1px solid rgba(200,155,60,0.25);
+  border-left: 3px solid var(--gold);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  font-size: 12px; color: var(--text); line-height: 1.7;
+  font-family: var(--mono);
+  margin-bottom: 12px;
+  white-space: pre-wrap;
+}
+.detail-screenshot {
+  width: 100%; border-radius: var(--radius);
+  border: 1px solid var(--border); display: block;
+  margin-bottom: 12px;
+}
+.edit-btn {
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  width: 100%; padding: 8px;
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-family: var(--mono); font-size: 11px; color: var(--text2);
+  cursor: pointer; transition: all var(--transition); margin-top: 4px;
+}
+.edit-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-lt); }
+
+/* ── TOAST ── */
+#toast {
+  position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%) translateY(8px);
+  background: var(--sidebar); color: #aee6b8;
+  font-family: var(--mono); font-size: 11px;
+  padding: 7px 16px; border-radius: 20px;
+  border: 1px solid var(--sb-border);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  z-index: 9999; opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: none; white-space: nowrap;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── DIVIDER ── */
+.divider { height: 1px; background: var(--border2); margin: 2px 0; }
+</style>
+</head>
+<body>
+
+<div class="shell" id="mainView">
+
+  <!-- ── TITLEBAR ── -->
+  <div class="titlebar">
+    <div class="logo-mark">PL</div>
+    <div class="logo-text">
+      <span class="logo-name">PL Journal</span>
+      <span class="logo-sub">mistake tracker</span>
+    </div>
+    <div class="sync-dot" id="syncDot" title="Storage active"></div>
+  </div>
+
+  <!-- ── CONTEXT BAR (auto-filled from page) ── -->
+  <div class="context-bar">
+    <div class="context-bar-label">Current Page</div>
+    <div class="context-chips">
+      <span class="ctx-chip" id="ctxCourse">Course —</span>
+      <span class="ctx-chip" id="ctxModule">Module —</span>
+      <span class="ctx-chip" id="ctxQuestion">Question —</span>
+      <span class="ctx-chip" id="ctxVariant">Variant —</span>
+    </div>
+  </div>
+
+  <!-- ── TAB BAR ── -->
+  <div class="tab-bar">
+    <div class="tab active" data-tab="write"   onclick="switchTab('write',this)">✏️ Write</div>
+    <div class="tab"        data-tab="recent"  onclick="switchTab('recent',this)">📋 Recent</div>
+    <div class="tab"        data-tab="starred" onclick="switchTab('starred',this)">⭐ Starred</div>
+  </div>
+
+  <!-- ══════════════════════════════════════════ WRITE TAB ══ -->
+  <div class="tab-body active" id="tab-write">
+    <div class="write-section">
+
+      <!-- Context selectors (manual override) -->
+      <div>
+        <div class="field-label"><span class="emoji">📍</span> Question Context</div>
+        <div class="selectors-grid">
+          <div class="sel-wrap">
+            <div class="sel-label">Course</div>
+            <select class="ctx-select" id="selCourse">
+              <option value="">Auto-detected…</option>
+              <option>CPSC 213</option><option>CPSC 221</option>
+              <option>CPSC 121</option><option>CPSC 103</option>
+              <option>PHYS 158</option><option>PHYS 159</option>
+            </select>
+          </div>
+          <div class="sel-wrap">
+            <div class="sel-label">Module</div>
+            <select class="ctx-select" id="selModule">
+              <option value="">Auto-detected…</option>
+              <option>PQ.1</option><option>PQ.2</option><option>PQ.3</option>
+              <option>PQ.4</option><option>PQ.5</option>
+            </select>
+          </div>
+          <div class="sel-wrap">
+            <div class="sel-label">Question</div>
+            <select class="ctx-select" id="selQuestion">
+              <option value="">Auto-detected…</option>
+              <option>PQ.1.1</option><option>PQ.1.2</option><option>PQ.1.3</option>
+              <option>PQ.2.1</option><option>PQ.2.2</option><option>PQ.2.3</option>
+            </select>
+          </div>
+          <div class="sel-wrap">
+            <div class="sel-label">Variant</div>
+            <select class="ctx-select" id="selVariant">
+              <option value="">Auto-detected…</option>
+              <option>Variant 1</option><option>Variant 2</option><option>Variant 3</option>
+              <option>Variant 4</option><option>Variant 5</option><option>Variant 6</option><option>Variant 7</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Reflection -->
+      <div>
+        <div class="field-label"><span class="emoji">📝</span> Reflection — Why did you get it wrong?</div>
+        <textarea class="field-textarea" id="inputReflection"
+          placeholder="e.g. I forgot to consider the base case in my recursion. The function kept calling itself without stopping because I didn't check the n === 0 condition…"></textarea>
+      </div>
+
+      <!-- Quick Note -->
+      <div>
+        <div class="field-label"><span class="emoji">⚡</span> Quick Note — Key takeaway</div>
+        <textarea class="field-textarea short" id="inputNote"
+          placeholder="e.g. Always check base case first."></textarea>
+      </div>
+
+      <!-- Screenshot -->
+      <div class="screenshot-area">
+        <div class="field-label"><span class="emoji">📷</span> Screenshot</div>
+        <button class="screenshot-btn" onclick="captureScreenshot()">
+          <span class="icon">📷</span> Capture current tab view
+        </button>
+        <img class="screenshot-preview" id="screenshotPreview" alt="Screenshot">
+        <button class="screenshot-btn" id="clearSsBtn" style="display:none;color:var(--red)"
+          onclick="clearScreenshot()">✕ Remove screenshot</button>
+      </div>
+
+    </div><!-- /write-section -->
+
+    <!-- Save / Clear actions — sticky at bottom -->
+    <div style="flex:1"></div>
+    <div class="action-row">
+      <button class="btn btn-secondary" onclick="clearForm()">Clear</button>
+      <button class="btn btn-primary"   onclick="saveEntry()">💾 Save Entry</button>
+    </div>
+  </div><!-- /tab-write -->
+
+  <!-- ══════════════════════════════════════════ RECENT TAB ══ -->
+  <div class="tab-body" id="tab-recent">
+    <div class="recent-section">
+      <div class="recent-header">
+        <div class="recent-title">Journal Entries</div>
+        <div class="recent-count" id="recentCount">0</div>
+      </div>
+      <div id="recentList">
+        <div class="empty-state">
+          <div class="empty-icon">📓</div>
+          <div class="empty-msg">No journal entries yet.<br>Write your first reflection above.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════ STARRED TAB ══ -->
+  <div class="tab-body" id="tab-starred">
+    <div class="recent-section">
+      <div class="recent-header">
+        <div class="recent-title">Starred Questions</div>
+        <div class="recent-count" id="starredCount">0</div>
+      </div>
+      <div id="starredList">
+        <div class="empty-state">
+          <div class="empty-icon">⭐</div>
+          <div class="empty-msg">No starred entries yet.<br>Star entries to review them later.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /mainView -->
+
+<!-- ══════════════════════════════════════════════ DETAIL VIEW ══ -->
+<div id="detailView" class="shell">
+  <div class="detail-header">
+    <button class="detail-back" onclick="closeDetail()">←</button>
+    <div class="detail-title" id="detailTitle">Journal Entry</div>
+    <div class="detail-date"  id="detailDate"></div>
+  </div>
+  <div class="detail-body" id="detailBody"></div>
+</div>
+
+<!-- ── TOAST ── -->
+<div id="toast"></div>
+
+<script src="sidepanel.js"></script>
+</body>
+</html>

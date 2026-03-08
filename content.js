@@ -190,3 +190,111 @@ const observer = new MutationObserver(() => {
   setTimeout(() => injectJournalButton(), 500);
 });
 observer.observe(document.body, { childList: true, subtree: true });
+
+// ── content.js ─────────────────────────────────────────────────────────────
+
+// it to the side panel via the background service worker.
+// ---------------------------------------------------------------------------
+
+(function () {
+  'use strict';
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+
+  function extractContext() {
+    const url   = window.location.href;
+    const title = document.title || '';
+
+    // ── Course code  (e.g. "CPSC 213", "PHYS 158")
+    let course = '';
+    const courseMatch = url.match(/\/course\/([^/]+)/) ||
+                        title.match(/([A-Z]{2,5}\s?\d{3}[A-Z]?)/);
+    if (courseMatch) course = courseMatch[1].replace(/_/g, ' ');
+
+    // ── Module / assessment  (e.g. "PQ.1", "HW3")
+    let module = '';
+    const assessMatch = url.match(/\/assessment\/(\d+)/) ||
+                        url.match(/\/(PQ[\d.]+|HW[\d]+|quiz[\d]+)/i);
+    if (assessMatch) module = assessMatch[1];
+
+    // Try to read it from the page heading
+    const heading = document.querySelector('h1, .assessment-title, .navbar-brand');
+    if (heading && !module) module = heading.textContent.trim().split('\n')[0].substring(0, 40);
+
+    // ── Question / variant
+    let question = '';
+    let variant  = '';
+    const qMatch = url.match(/\/question\/(\d+)/);
+    if (qMatch) question = 'Q' + qMatch[1];
+
+    const vMatch = url.match(/variant[_-]?id=(\d+)/i) ||
+                   url.match(/\/variant\/(\d+)/);
+    if (vMatch) variant = 'Variant ' + vMatch[1];
+
+    // Fallback: try reading from page elements
+    if (!question) {
+      const qEl = document.querySelector('.question-title, [data-question-id]');
+      if (qEl) question = qEl.textContent.trim().substring(0, 30);
+    }
+
+    return { course, module, question, variant, url, title };
+  }
+
+  function sendContext() {
+    const ctx = extractContext();
+    chrome.runtime.sendMessage({ type: 'PAGE_CONTEXT', payload: ctx })
+      .catch(() => {}); // background may not be ready
+  }
+
+  // ── Send context on load and on URL change (SPA navigation)
+  sendContext();
+
+  let _lastUrl = location.href;
+  const observer = new MutationObserver(() => {
+    if (location.href !== _lastUrl) {
+      _lastUrl = location.href;
+      setTimeout(sendContext, 600); // wait for DOM to settle
+    }
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+
+  // ── Listen for acknowledgements from background
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg.type === 'ENTRY_SAVED_ACK') {
+      // Optional: show a brief in-page toast
+      showPageToast('📓 Journal entry saved!');
+    }
+  });
+
+  function showPageToast(text) {
+    const existing = document.getElementById('pl-journal-toast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.id = 'pl-journal-toast';
+    toast.textContent = text;
+    Object.assign(toast.style, {
+      position:     'fixed',
+      bottom:       '20px',
+      right:        '20px',
+      background:   '#1e2328',
+      color:        '#aee6b8',
+      fontFamily:   'monospace',
+      fontSize:     '12px',
+      padding:      '8px 14px',
+      borderRadius: '7px',
+      border:       '1px solid #2f353d',
+      boxShadow:    '0 4px 20px rgba(0,0,0,0.3)',
+      zIndex:       '2147483647',
+      opacity:      '0',
+      transition:   'opacity 0.2s ease',
+      pointerEvents:'none',
+    });
+    document.body.appendChild(toast);
+    requestAnimationFrame(() => { toast.style.opacity = '1'; });
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      setTimeout(() => toast.remove(), 300);
+    }, 2500);
+  }
+})();
