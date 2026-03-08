@@ -32,7 +32,7 @@
   function getCourse() {
     const el = document.querySelector('.navbar-text');
     if (!el) return "";
-    const match = el.innerText.match(/CPSC \d+|MATH \d+/i);
+    const match = el.innerText.match(/CPSC \d+/i);
     return match ? match[0].toUpperCase() : "";
   }
 
@@ -173,6 +173,15 @@
       sendResponse(extractQuestionData());
     }
 
+    if (msg.action !== "togglePanel") return;
+
+    if (!isPracticeQuestion()) {
+      showTeaseMessage();
+      return;
+    }
+
+    chrome.runtime.sendMessage({ type: 'OPEN_SIDE_PANEL' });
+
     // Background confirms an entry was saved — show toast
     if (msg.type === 'ENTRY_SAVED_ACK') {
       showPageToast('📓 Journal entry saved!');
@@ -216,17 +225,40 @@
     `;
 
     btn.addEventListener('click', () => {
-      btn.querySelector('div').style.background = '#28a745';
-      btn.querySelector('span:last-child').textContent = 'Now click the extension icon ↑';
-      setTimeout(() => {
-        btn.querySelector('div').style.background = '#4a6cf7';
-        btn.querySelector('span:last-child').textContent = 'Journal This Mistake';
-      }, 3000);
+      chrome.runtime.sendMessage({ type: 'OPEN_SIDE_PANEL' });
     });
 
     document.body.appendChild(btn);
-  }
 
+  }
+    // ========================================================================
+  //  Tease Message
+  // ========================================================================
+
+  function showTeaseMessage() {
+    // Don't stack duplicates
+    if (document.getElementById('pl-tease')) return;
+  
+    const panel = document.createElement('div');
+    panel.id = 'pl-tease';
+    panel.innerHTML = `
+      <div style="
+        position: fixed; bottom: 20px; right: 20px;
+        background: #1a1a2e; color: #fff;
+        border-radius: 12px; padding: 16px 20px;
+        font-family: sans-serif; font-size: 14px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        max-width: 220px; text-align: center; z-index: 99999;
+      ">
+        <div style="font-size: 24px; margin-bottom: 8px">🚫🤖</div>
+        <strong>Nope!</strong><br>
+        Only works on practice questions.<br>
+        <span style="opacity: 0.6; font-size: 12px">Go struggle a little 😄</span>
+      </div>
+    `;
+    document.body.appendChild(panel);
+    setTimeout(() => panel.remove(), 3000);
+  }
   // ========================================================================
   // IN-PAGE TOAST NOTIFICATION
   // ========================================================================

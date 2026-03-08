@@ -3,7 +3,7 @@
   "description": "Learn from your PrairieLearn mistakes",
   "version": "1.0",
   "manifest_version": 3,
-  "permissions": ["storage", "activeTab", "sidePanel"],
+  "permissions": ["storage", "activeTab", "sidePanel", "contextMenus"],
   "action": {
     "default_title": "Prairie Journal",
     "default_icon": {

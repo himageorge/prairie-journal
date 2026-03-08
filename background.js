@@ -6,13 +6,13 @@
 // ---------------------------------------------------------------------------
 // 1. Open the side panel when the extension icon is clicked
 // ---------------------------------------------------------------------------
-chrome.sidePanel
-  .setPanelBehavior({ openPanelOnActionClick: true })
-  .catch(console.error);
+chrome.action.onClicked.addListener((tab) => {
+  chrome.tabs.sendMessage(tab.id, { action: "togglePanel" });
+});
 
 // ---------------------------------------------------------------------------
 // 2. Auto-enable the side panel only on PrairieLearn tabs
-//    (restricts the action button to PL pages)
+//    (restricts the action button to PL pages) -> not working!!!!!!!!!!!!
 // ---------------------------------------------------------------------------
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (changeInfo.status !== 'complete') return;
@@ -34,10 +34,15 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   }
 });
 
+
 // ---------------------------------------------------------------------------
 // 3. Message router — relay messages between content script and side panel
 // ---------------------------------------------------------------------------
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'OPEN_SIDE_PANEL') {
+    chrome.sidePanel.open({ tabId: sender.tab.id });
+    return false;
+  }
 
   // ── Screenshot request: side panel asks content script to grab a screenshot
   if (message.type === 'REQUEST_SCREENSHOT') {
@@ -85,3 +90,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   return false;
 });
+
+// ---------------------------------------------------------------------------
+// 3. go to dashboard
+// ---------------------------------------------------------------------------
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.contextMenus.create({
+    id: "open Dashboard",
+    title: "Go to Dashboard",
+    contexts: ["action"]
+  });
+});
+
+chrome.contextMenus.onClicked.addListener((info) =>{
+  if(info.menuItemId == "open Dashboard"){
+    const url = chrome.runtime.getURL("dashboard.html");
+    chrome.tabs.create({ url });
+  }
+})
