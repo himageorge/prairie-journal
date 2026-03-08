@@ -1,0 +1,25 @@
+{
+  "name": "Prairie Journal",
+  "description": "Learn from your PrairieLearn mistakes",
+  "version": "1.0",
+  "manifest_version": 3,
+  "permissions": ["storage", "activeTab", "sidePanel"],
+  "action": {
+    "default_title": "Prairie Journal"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "content_scripts": [{
+    "matches": [
+      "https://us.prairielearn.com/*",
+      "https://ca.prairielearn.com/*",
+      "https://*.prairielearn.com/*"
+    ],
+    "js": ["content.js"],
+    "run_at": "document_idle"
+  }],
+  "background": {
+    "service_worker": "background.js"
+  }
+}
