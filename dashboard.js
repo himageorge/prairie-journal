@@ -54,7 +54,8 @@ function loadAndRender() {
 
 // ─── STATS ───
 function renderStats(entries, grouped) {
-  document.getElementById('stat-wrong').textContent   = entries.length;
+  const wrongEl = document.getElementById('stat-wrong');
+  if (wrongEl) wrongEl.textContent = entries.length;
   document.getElementById('stat-courses').textContent = Object.keys(grouped).length;
   document.getElementById('stat-starred').textContent = entries.filter(e => e.starred).length;
   document.getElementById('stat-journal').textContent = entries.length;
@@ -94,7 +95,6 @@ function buildCourseCard(course, modules, totalWrong) {
     modulesHtml += `
       <div class="module-row" data-action="togglePQ">
         <div class="tree-arrow">▶</div>
-        <span class="module-icon">📄</span>
         <span class="module-name">${escHtml(mod)}</span>
         <div class="module-stats"><span class="mod-stat-wrong">✗ ${modWrong}</span></div>
       </div>
@@ -104,7 +104,6 @@ function buildCourseCard(course, modules, totalWrong) {
   <div class="course-overview-card">
     <div class="coc-header" data-action="toggleCourse">
       <div class="coc-arrow">▶</div>
-      <span class="coc-folder-icon" style="font-size:20px">📁</span>
       <div class="coc-info">
         <div class="coc-name">${escHtml(course)}</div>
         <div class="coc-meta">
@@ -124,25 +123,31 @@ function buildQuestionBlock(q, entries) {
     const idx     = _allEntries.indexOf(entry);
     const date    = formatDate(entry.timestamp);
     const variant = entry.variant || 'Unknown Variant';
-    const chip    = variant.replace(/[^a-zA-Z0-9]/g,'').substring(0,4) || 'V?';
+    const isStarred = entry.starred ? 'starred' : '';
     variantRowsHtml += `
       <div class="variant-row" data-action="openEntry" data-idx="${idx}">
-        <div class="v-chip">${escHtml(chip)}</div>
         <div class="v-name">${escHtml(variant)}</div>
+        <button class="v-star ${isStarred}" data-action="starEntry" data-idx="${idx}" title="Star this variant">★</button>
         <div class="v-date">${escHtml(date)}</div>
         <div class="v-journal-btn">📝 View entry</div>
       </div>`;
   }
+  const count = entries.length;
+  const pill = count >= 5
+    ? `<span class="q-wrong-pill urgent">go to office hours</span>`
+    : count >= 3
+      ? `<span class="q-wrong-pill warn">review concepts?</span>`
+      : '';
   return `
     <div class="q-main-row" data-action="toggleQ">
       <div class="q-arrow">▶</div>
       <span class="q-main-label">${escHtml(q)}</span>
-      <span class="q-wrong-pill">✗ ${entries.length} wrong</span>
+      ${pill}
     </div>
     <div class="q-detail">
       <div class="q-detail-inner">
         <div class="q-detail-header">
-          <div class="q-detail-title">📊 ${escHtml(q)}</div>
+          <div class="q-detail-title">${escHtml(q)}</div>
           <div class="q-detail-summary">
             <div class="qd-stat">Wrong attempts: <strong>${entries.length}</strong></div>
           </div>
@@ -245,13 +250,21 @@ function openJournalEntry(triggerEl, idx) {
   document.getElementById('jpTags').innerHTML    = '';
 
   const qdSection = document.getElementById('jpQuestionData');
-  if (entry.questionData || entry.myAnswerText || entry.correctAnswer) {
+  if (entry.questionText || entry.myAnswerText || entry.correctAnswer) {
     qdSection.style.display = 'block';
-    document.getElementById('jpQuestionText').textContent  = entry.questionData  || '—';
+    document.getElementById('jpQuestionText').textContent  = entry.questionText  || '—';
     document.getElementById('jpMyAnswer').textContent      = entry.myAnswerText  || '—';
     document.getElementById('jpCorrectAnswer').textContent = entry.correctAnswer || '—';
   } else {
     qdSection.style.display = 'none';
+  }
+
+  const aiSection = document.getElementById('jpAiSection');
+  if (entry.aiFeedback) {
+    aiSection.style.display = 'block';
+    document.getElementById('jpAiFeedback').textContent = entry.aiFeedback;
+  } else {
+    aiSection.style.display = 'none';
   }
 
   const ssWrap = document.getElementById('jpScreenshotWrap');
@@ -272,6 +285,16 @@ function closeJournal() {
   document.getElementById('journalPanel').style.display = 'none';
   document.querySelector('.main-content').style.marginRight = '0';
   document.querySelectorAll('.variant-row.active').forEach(r => r.classList.remove('active'));
+}
+
+// ─── STAR ───
+function toggleStar(idx) {
+  const entry = _allEntries[idx];
+  if (!entry) return;
+  entry.starred = !entry.starred;
+  chrome.storage.local.set({ [STORAGE_KEY]: _allEntries }, () => {
+    loadAndRender();
+  });
 }
 
 // ─── TOGGLE HELPERS ───
@@ -304,6 +327,7 @@ function toggleQ(row) {
 // ─── BREADCRUMB ───
 function setBreadcrumb(parts) {
   const bc = document.getElementById('breadcrumb');
+  if (!bc) return;
   bc.innerHTML = parts.map((p, i) => {
     const cls = i === parts.length - 1 ? 'bc-item active' : 'bc-item';
     return `<span class="${cls}">${escHtml(p)}</span>`;
@@ -353,6 +377,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (action === 'toggleCourse')     toggleCourse(el);
     else if (action === 'togglePQ')    togglePQ(el);
     else if (action === 'toggleQ')     toggleQ(el);
+    else if (action === 'starEntry') {
+      e.stopPropagation();
+      toggleStar(parseInt(el.dataset.idx, 10));
+    }
     else if (action === 'openEntry')   openJournalEntry(el, parseInt(el.dataset.idx, 10));
   });
 });

@@ -38,17 +38,13 @@
 
   // Get submission score from badge (0-100) or null if not graded
   function getScore() {
-    // Target the badge that is currently active (text-bg-info)
-    const badge = document.querySelector('a.badge.text-bg-info');
-    
-    if (!badge) {
-      console.log("No active badge found(the getScore is not working).");
-      return null;
-    }
-  
-    // Use regex to extract just the numbers, ignoring the "%" and "(current)" text
-    const scoreText = badge.innerText.match(/\d+/);
-    return scoreText ? parseInt(scoreText[0]) : null;
+    const badge = document.querySelector('a.badge.text-bg-info, .badge.text-bg-info, a.badge.bg-info, .badge.bg-info');
+    if (!badge) return null;
+    const text = badge.innerText;
+    const pctMatch = text.match(/(\d+)%/);
+    if (pctMatch) return parseInt(pctMatch[1]);
+    const numMatch = text.match(/\d+/);
+    return numMatch ? parseInt(numMatch[0]) : null;
   }
 
   // Get question title from the question block header
@@ -58,16 +54,30 @@
     return header ? header.innerText.trim() : "Unknown Question";
   }
 
-  function getVariantId() {
-    // Target the active badge link
-    const badgeLink = document.querySelector('a.badge.text-bg-info');
-    
-    if (!badgeLink) return null;
-
-    // Create a URL object to easily parse parameters
-    const url = new URL(badgeLink.href, window.location.origin);
-    return url.searchParams.get('variant_id');
+  function getVariantInfo() {
+    // Get ALL variant badge links (secondary = all variants, info = current)
+    const allBadges = document.querySelectorAll('a.badge.text-bg-secondary, a.badge.text-bg-info');
+    if (!allBadges.length) return null;
   
+    const variants = Array.from(allBadges).map(badge => {
+      const url = new URL(badge.href, window.location.origin);
+      return url.searchParams.get('variant_id');
+    });
+  
+    // Current variant is the one with text-bg-info class
+    const currentBadge = document.querySelector('a.badge.text-bg-info');
+    if (!currentBadge) return null;
+    
+    const currentUrl = new URL(currentBadge.href, window.location.origin);
+    const currentId = currentUrl.searchParams.get('variant_id');
+  
+    const index = variants.indexOf(currentId); // 0-based
+  
+    return {
+      id: currentId,
+      label: `Variant ${index + 1}`,
+      url: currentBadge.href
+    };
   }
 
   // Check if student got a wrong answer on a practice question
@@ -145,6 +155,7 @@
     
   
 
+    const variantInfo = getVariantInfo();
     return {
       questionTitle: getQuestionTitle(),
       questionText,
@@ -153,6 +164,7 @@
       correctAnswer,
       course: getCourse(),
       assessmentName: getAssessmentName(),
+      variant: variantInfo ? variantInfo.label : '',
       score: getScore(),
       isPractice: isPracticeQuestion(),
       isWrongAnswer: isWrongPracticeAnswer(),
@@ -166,11 +178,12 @@
 
   function buildPageContext() {
     const url = window.location.href;
+    const variantInfo = getVariantInfo();
     return {
       course: getCourse(),
       module: getAssessmentName(),
       question: getQuestionTitle(),
-      variant: '',
+      variant: variantInfo ? variantInfo.label : '',
       url: url,
       title: document.title || '',
       isPractice: isPracticeQuestion(),
@@ -214,7 +227,7 @@
 
     if (msg.action !== "togglePanel") return;
 
-    if (!isPracticeQuestion()) {
+    if (!document.querySelector('.question-body')) {
       showTeaseMessage();
       return;
     }
@@ -233,9 +246,16 @@
   // FLOATING "JOURNAL THIS MISTAKE" BUTTON
   // ========================================================================
 
+  function hasWrongAnswer() {
+    const gradingBlock = document.querySelector('.grading-block');
+    if (!gradingBlock || gradingBlock.classList.contains('d-none')) return false;
+    const score = getScore();
+    return score !== null && score < 100;
+  }
+
   function injectJournalButton() {
     if (document.getElementById('prairie-journal-btn')) return;
-    if (!isWrongPracticeAnswer()) return;
+    if (!hasWrongAnswer()) return;
 
     const btn = document.createElement('div');
     btn.id = 'prairie-journal-btn';

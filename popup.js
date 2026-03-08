@@ -6,7 +6,7 @@ import { CONFIG } from './config.js';
  */
 export async function getSocraticExplanation(questionData) {
     const prompt = `
-        You are a Socratic TA. 
+        You are a Socratic TA. Use the contextual information below to perform your task.
         Course: ${questionData.course}
         Topic: ${questionData.questionTitle}
         Question: ${questionData.questionText}
@@ -15,7 +15,7 @@ export async function getSocraticExplanation(questionData) {
         Student Logic: "${questionData.myReasoning}"
 
         Task: Understand and analyze the question, the student answer, the current answer, and the student logic to identi
-        fy gaps in understanding. Identify the logical gap. 
+        fy gaps in understanding.  
         Keep it under 100 words.
     `;
 
@@ -29,7 +29,7 @@ export async function getSocraticExplanation(questionData) {
 });
         
         const data = await response.json();
-        console.log("Gemini API Full Response:", data); // <--- ADD THIS
+        console.log("Gemini API Full Response:", data); 
         const feedback = data.candidates?.[0]?.content?.parts?.[0]?.text;
         return feedback || "The TA is pondering... try rephrasing your reflection.";
     } catch (error) {

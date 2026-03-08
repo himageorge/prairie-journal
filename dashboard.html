@@ -94,7 +94,7 @@
   display:none;
   position:fixed;
   top:44px; right:0;
-  width:380px;
+  width:450px;
   height:calc(100vh - 44px);
   background:var(--panel);
   border-left:1px solid var(--border);
@@ -121,6 +121,11 @@
     <div class="jp-notes" id="jpMyAnswer" style="margin-bottom:10px;border-left:3px solid var(--red)"></div>
     <div class="jp-entry-label">Correct Answer</div>
     <div class="jp-notes" id="jpCorrectAnswer" style="margin-bottom:10px;border-left:3px solid var(--accent)"></div>
+  </div>
+
+  <div id="jpAiSection" style="display:none">
+    <div class="jp-entry-label" style="margin-top:10px">AI Suggestion</div>
+    <div class="jp-notes" id="jpAiFeedback" style="border-left:3px solid var(--accent);font-style:italic"></div>
   </div>
 
   <div class="jp-tags" id="jpTags"></div>

@@ -16,6 +16,8 @@ const STORAGE_KEY_CONTEXT  = 'pl_last_context';
 
 let _pageContext   = {};   // injected by content script via background
 let _screenshot    = null; // current base64 PNG
+let _aiFeedback    = null; // cached AI response for current reasoning
+let _questionData  = {};   // Q&A from content script, cached for saveEntry
 
 // ════════════════════════════════════════════════════════════════════════════
 // STORAGE HELPERS  (chrome.storage.local)
@@ -129,6 +131,41 @@ function clearScreenshot() {
 // SAVE ENTRY
 // ════════════════════════════════════════════════════════════════════════════
 
+async function runAI() {
+  const reflection = document.getElementById('inputReflection').value.trim();
+  if (!reflection) return;
+
+  showToast('🧠 Socratic TA is thinking...');
+
+  const { course, question } = getContextValues();
+
+  _questionData = {};
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id) {
+      _questionData = await chrome.tabs.sendMessage(tab.id, { type: 'EXTRACT_QUESTION' });
+    }
+  } catch (e) { console.warn(e); }
+
+  _aiFeedback = await getSocraticExplanation({
+    course: course || "General",
+    questionTitle: question || "Unknown Question",
+    questionText: _questionData?.questionText || "No question text found",
+    myAnswer: _questionData?.myAnswerText || "No answer provided",
+    correctAnswer: _questionData?.correctAnswer || "Not available",
+    myReasoning: reflection
+  });
+
+  const aiDisplay = document.getElementById('aiText');
+  const aiBox = document.getElementById('aiResponseBox');
+  if (aiDisplay && aiBox) {
+    aiDisplay.textContent = _aiFeedback;
+    aiBox.style.display = 'block';
+  }
+
+  showToast('✓ AI feedback ready!');
+}
+
 async function saveEntry() {
   const reflection = document.getElementById('inputReflection').value.trim();
   const quickNote  = document.getElementById('inputNote').value.trim();
@@ -138,49 +175,24 @@ async function saveEntry() {
     return;
   }
 
-  showToast('🧠 Socratic TA is thinking...');
+  // Run AI now if the user skipped Enter
+  if (!_aiFeedback) await runAI();
 
   const { course, module, question, variant } = getContextValues();
-  
-  // 1. Fetch answer data from content script
-  let questionData = {};
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab?.id) {
-      questionData = await chrome.tabs.sendMessage(tab.id, { type: 'EXTRACT_QUESTION' });
-    }
-  } catch (e) { console.warn(e); }
 
-  // 2. Call the AI function (now in the same file)
-  const aiFeedback = await getSocraticExplanation({
-    course: course || "General",
-    questionTitle: question || "Unknown Question",
-    questionText: questionData?.questionText || "No question text found",
-    myAnswer: questionData?.myAnswerText || "No answer provided",
-    correctAnswer: questionData?.correctAnswer || "Not available",
-    myReasoning: reflection
-  });
-
-  // 3. Construct and save the entry
   const entry = {
     key: journalKey(course, module, question, variant),
     course, module, question, variant,
-    reflection, quickNote, aiFeedback, // <--- Added aiFeedback
+    reflection, quickNote, aiFeedback: _aiFeedback,
+    questionText: _questionData?.questionText || '',
+    myAnswerText: _questionData?.myAnswerText || '',
+    correctAnswer: _questionData?.correctAnswer || '',
     screenshot: _screenshot,
     timestamp: new Date().toLocaleString()
   };
 
   await insertEntry(entry);
-  
-  // Update the UI with the hint
-  const aiDisplay = document.getElementById('aiText');
-  const aiBox = document.getElementById('aiResponseBox');
-  if (aiDisplay && aiBox) {
-    aiDisplay.textContent = aiFeedback;
-    aiBox.style.display = 'block';
-  }
-
-  showToast('✓ Saved with AI feedback!');
+  showToast('✓ Saved!');
   clearForm();
 }
 
@@ -191,6 +203,10 @@ async function saveEntry() {
 function clearForm() {
   document.getElementById('inputReflection').value = '';
   document.getElementById('inputNote').value = '';
+  _aiFeedback = null;
+  _questionData = {};
+  const aiBox = document.getElementById('aiResponseBox');
+  if (aiBox) aiBox.style.display = 'none';
   clearScreenshot();
 }
 
@@ -223,6 +239,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   chrome.runtime.sendMessage({ type: 'REQUEST_CONTEXT' });
 
   // --- Event Listeners (CSP Compliant) ---
+
+  // Trigger AI on Enter in reasoning textarea (Shift+Enter still adds a newline)
+  document.getElementById('inputReflection').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      runAI();
+    }
+  });
 
   // Save Button
   document.getElementById('saveBtn').addEventListener('click', saveEntry);
