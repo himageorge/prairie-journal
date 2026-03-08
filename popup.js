@@ -5,6 +5,8 @@ import { CONFIG } from './.gitignore/config.js';
  * Triggered when Person 1's "Explain" button is clicked.
  */
 export async function getSocraticExplanation(questionData) {
+    console.log('🔵 getSocraticExplanation called with:', questionData);
+  
     const prompt = `
         You are a Socratic TA. 
         Course: ${questionData.course}
