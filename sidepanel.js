@@ -182,22 +182,42 @@ chrome.runtime.onMessage.addListener((message) => {
 // INIT
 // ════════════════════════════════════════════════════════════════════════════
 
+
 document.addEventListener('DOMContentLoaded', async () => {
-  // Restore last known context (from storage, in case panel was closed/reopened)
+  // Restore last known context
   chrome.storage.local.get([STORAGE_KEY_CONTEXT], result => {
     if (result[STORAGE_KEY_CONTEXT]) {
       applyContext(result[STORAGE_KEY_CONTEXT]);
     }
   });
 
-  // Actively request fresh context from the active tab's content script
+  // Actively request fresh context from the active tab
   chrome.runtime.sendMessage({ type: 'REQUEST_CONTEXT' });
 
+  // --- Event Listeners (CSP Compliant) ---
+
+  // Save Button
   document.getElementById('saveBtn').addEventListener('click', saveEntry);
   
+  // Dashboard Button
   document.getElementById('dashBtn').addEventListener('click', () => {
     const url = chrome.runtime.getURL("dashboard.html");
     chrome.tabs.create({ url });
   });
+
+  // Screenshot Capture Button
+  const capBtn = document.querySelector('.screenshot-btn:not(#clearSsBtn)');
+  if (capBtn) {
+    capBtn.addEventListener('click', captureScreenshot);
+  }
+
+  // Clear Screenshot Button (The "X")
+  document.getElementById('clearSsBtn').addEventListener('click', clearScreenshot);
+
+  // General Form Clear Button
+  const clearBtn = document.querySelector('.btn-secondary[onclick="clearForm()"]'); 
+  // Note: Since we're removing the attribute, selecting by class/text or adding an ID is better.
+  // Let's assume you add id="clearBtn" to the HTML or use this:
+  document.querySelector('.action-row .btn-secondary').addEventListener('click', clearForm);
 });
 
