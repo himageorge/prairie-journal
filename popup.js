@@ -1,4 +1,4 @@
-import { CONFIG } from './config.js';
+import { CONFIG } from './.gitignore/config.js';
 
 /**
  * PERSON 3: Fetch Socratic Explanation
