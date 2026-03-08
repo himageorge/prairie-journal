@@ -14,8 +14,9 @@ export async function getSocraticExplanation(questionData) {
         Correct Answer: ${questionData.correctAnswer}
         Student Logic: "${questionData.myReasoning}"
 
-        Task: Do NOT give the answer. Identify the logical gap. 
-        Ask one leading question. Keep it under 100 words.
+        Task: Understand and analyze the question, the student answer, the current answer, and the student logic to identi
+        fy gaps in understanding. Identify the logical gap. 
+        Keep it under 100 words.
     `;
 
     try {
@@ -24,11 +25,13 @@ export async function getSocraticExplanation(questionData) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 contents: [{ parts: [{ text: prompt }] }]
-            })
-        });
+    })
+});
         
         const data = await response.json();
-        return data.candidates[0].content.parts[0].text;
+        console.log("Gemini API Full Response:", data); // <--- ADD THIS
+        const feedback = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        return feedback || "The TA is pondering... try rephrasing your reflection.";
     } catch (error) {
         console.error("AI Error:", error);
         return "The brain is offline. Check your API key in config.js.";

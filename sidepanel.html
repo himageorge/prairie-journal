@@ -318,19 +318,22 @@ html, body {
       <!-- Screenshot -->
       <div class="screenshot-area">
         <div class="field-label"><span class="emoji">📷</span> Screenshot</div>
-        <button class="screenshot-btn" onclick="captureScreenshot()">
+        <button class="screenshot-btn" id="captureSsBtn">
           <span class="icon">📷</span> Capture current tab view
         </button>
         <img class="screenshot-preview" id="screenshotPreview" alt="Screenshot">
-        <button class="screenshot-btn" id="clearSsBtn" style="display:none;color:var(--red)"
-          onclick="clearScreenshot()">✕ Remove screenshot</button>
+        <button class="screenshot-btn" id="clearSsBtn" style="display:none;color:var(--red)">
       </div>
 
     </div><!-- /write-section -->
+    <div id="aiResponseBox" style="margin: 0 14px 14px; padding: 12px; background: var(--gold-lt); border: 1px solid var(--gold); border-radius: var(--radius); display: none;">
+      <div style="font-size: 10px; color: var(--gold); font-weight: bold; margin-bottom: 4px; letter-spacing: 0.5px;">SOCRATIC HINT</div>
+      <div id="aiText" style="font-size: 11px; line-height: 1.4; color: var(--text);"></div>
+    </div>
 
     <!-- ACTION BUTTONS -->
     <div class="action-row">
-      <button class="btn btn-secondary" onclick="clearForm()">Clear</button>
+      <button class="btn btn-secondary" id="clearFormBtn">Clear</button>
       <button class="btn btn-primary"   id="saveBtn">Save</button>
       <button class="btn btn-secondary" id="dashBtn">Dashboard →</button>
     </div>
@@ -342,6 +345,7 @@ html, body {
 <!-- ── TOAST ── -->
 <div id="toast"></div>
 
-<script src="sidepanel.js"></script>
+<!-- <script src="config.js"></script> -->
+<script type="module" src="sidepanel.js"></script>
 </body>
 </html>

@@ -1,9 +1,12 @@
+
 // ── sidepanel.js ───────────────────────────────────────────────────────────
 // All interactivity for the PrairieLearn Journal side panel.
 // Communicates with background.js via chrome.runtime.sendMessage.
 // Persists data with chrome.storage.local.
 // ---------------------------------------------------------------------------
-'use strict';
+import { getSocraticExplanation, sendChatMessage } from './popup.js';
+import { CONFIG } from './config.js';
+
 
 // ════════════════════════════════════════════════════════════════════════════
 // CONSTANTS & STATE
@@ -130,44 +133,54 @@ async function saveEntry() {
   const reflection = document.getElementById('inputReflection').value.trim();
   const quickNote  = document.getElementById('inputNote').value.trim();
 
-
   if (!reflection) {
     showToast('⚠️ Please write a reflection first.');
-    document.getElementById('inputReflection').focus();
     return;
   }
 
-  const { course, module, question, variant } = getContextValues();
-  const key = journalKey(course, module, question, variant);
-  const timestamp = new Date().toLocaleString();
+  showToast('🧠 Socratic TA is thinking...');
 
-  // Fetch answer data from the content script
+  const { course, module, question, variant } = getContextValues();
+  
+  // 1. Fetch answer data from content script
   let questionData = {};
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab?.id) {
       questionData = await chrome.tabs.sendMessage(tab.id, { type: 'EXTRACT_QUESTION' });
     }
-  } catch (e) {
-    console.warn('Could not extract question data:', e);
-  }
+  } catch (e) { console.warn(e); }
 
+  // 2. Call the AI function (now in the same file)
+  const aiFeedback = await getSocraticExplanation({
+    course: course || "General",
+    questionTitle: question || "Unknown Question",
+    questionText: questionData?.questionText || "No question text found",
+    myAnswer: questionData?.myAnswerText || "No answer provided",
+    correctAnswer: questionData?.correctAnswer || "Not available",
+    myReasoning: reflection
+  });
+
+  // 3. Construct and save the entry
   const entry = {
-    key, course, module, question, variant,
-    reflection, quickNote,
+    key: journalKey(course, module, question, variant),
+    course, module, question, variant,
+    reflection, quickNote, aiFeedback, // <--- Added aiFeedback
     screenshot: _screenshot,
-    timestamp,
-    questionData: questionData.questionText     || null,
-    myAnswerText:     questionData.myAnswerText     || null,
-    correctAnswer: questionData.correctAnswer || null,
+    timestamp: new Date().toLocaleString()
   };
 
   await insertEntry(entry);
+  
+  // Update the UI with the hint
+  const aiDisplay = document.getElementById('aiText');
+  const aiBox = document.getElementById('aiResponseBox');
+  if (aiDisplay && aiBox) {
+    aiDisplay.textContent = aiFeedback;
+    aiBox.style.display = 'block';
+  }
 
-  // Notify background so content script can show in-page confirmation
-  chrome.runtime.sendMessage({ type: 'ENTRY_SAVED', payload: entry }).catch(() => {});
-
-  showToast('✓ Journal entry saved!');
+  showToast('✓ Saved with AI feedback!');
   clearForm();
 }
 
@@ -235,4 +248,3 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Let's assume you add id="clearBtn" to the HTML or use this:
   document.querySelector('.action-row .btn-secondary').addEventListener('click', clearForm);
 });
-

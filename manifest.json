@@ -24,10 +24,12 @@
   "side_panel": {
     "default_path": "sidepanel.html"
   },
+  "background": { "service_worker": "background.js", "type": "module" },
 
   "host_permissions": [
     "*://*.prairielearn.com/*",
-    "*://*.prairielearn.org/*"
+    "*://*.prairielearn.org/*",
+    "https://generativelanguage.googleapis.com/*"
   ],
 
   "content_scripts": [{
@@ -38,8 +40,5 @@
     ],
     "js": ["content.js"],
     "run_at": "document_idle"
-  }],
-  "background": {
-    "service_worker": "background.js"
-  }
+  }]
 }
