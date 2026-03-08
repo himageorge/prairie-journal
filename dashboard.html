@@ -1,0 +1,1976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PrairieLearn Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;1,9..144,300&display=swap" rel="stylesheet">
+<style>
+/* ── RESET & BASE ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:        #f5f2ec;
+  --panel:     #fefdfa;
+  --sidebar:   #1e2328;
+  --sb-hover:  #2a3038;
+  --sb-active: #2e3a28;
+  --sb-border: #2f353d;
+  --accent:    #4a7c59;
+  --accent2:   #6aab80;
+  --accent-lt: #ddf0e3;
+  --gold:      #c89b3c;
+  --gold-lt:   #fef6e0;
+  --red:       #c0392b;
+  --red-lt:    #fdecea;
+  --text:      #1a1e24;
+  --text2:     #4a5568;
+  --text3:     #8a97a8;
+  --sb-text:   #c8d0da;
+  --sb-text2:  #7a8798;
+  --sb-text3:  #4a5568;
+  --border:    #ddd8cf;
+  --border2:   #e8e3da;
+  --mono:      'JetBrains Mono', monospace;
+  --serif:     'Fraunces', serif;
+  --radius:    6px;
+  --radius2:   10px;
+  --transition: 0.22s cubic-bezier(0.4,0,0.2,1);
+}
+
+html, body {
+  height: 100%;
+  font-family: var(--mono);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow: hidden;
+}
+
+/* ── LAYOUT ── */
+.app {
+  display: grid;
+  grid-template-rows: 44px 1fr;
+  grid-template-columns: 280px 1fr;
+  height: 100vh;
+  min-height: 500px;
+}
+
+/* ── TITLEBAR ── */
+.titlebar {
+  grid-column: 1 / -1;
+  background: var(--sidebar);
+  border-bottom: 1px solid var(--sb-border);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 16px;
+  user-select: none;
+}
+.titlebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.logo-mark {
+  width: 28px; height: 28px;
+  background: var(--accent);
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: #fff;
+  letter-spacing: -0.5px;
+  box-shadow: 0 0 12px rgba(74,124,89,0.4);
+  flex-shrink: 0;
+}
+.logo-name {
+  font-family: var(--serif);
+  font-size: 15px;
+  font-weight: 500;
+  color: #fff;
+  letter-spacing: -0.2px;
+}
+.logo-sub {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--sb-text2);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.titlebar-sep {
+  width: 1px; height: 20px;
+  background: var(--sb-border);
+  flex-shrink: 0;
+}
+.titlebar-tabs {
+  display: flex;
+  gap: 2px;
+  flex: 1;
+}
+.t-tab {
+  padding: 5px 14px;
+  border-radius: 5px;
+  font-size: 11px;
+  color: var(--sb-text2);
+  cursor: pointer;
+  transition: all var(--transition);
+  letter-spacing: 0.3px;
+}
+.t-tab:hover { background: var(--sb-hover); color: var(--sb-text); }
+.t-tab.active { background: var(--sb-active); color: #aee6b8; }
+.titlebar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+.sync-status {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 10px; color: var(--sb-text2);
+}
+.sync-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent2);
+  box-shadow: 0 0 6px rgba(106,171,128,0.6);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%,100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.tb-btn {
+  padding: 4px 10px;
+  border-radius: 5px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: var(--sb-text);
+  font-size: 10px;
+  font-family: var(--mono);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.tb-btn:hover { background: rgba(255,255,255,0.12); }
+.tb-btn.danger { color: #e07070; border-color: rgba(192,57,43,0.2); }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  background: var(--sidebar);
+  border-right: 1px solid var(--sb-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.sidebar-search {
+  padding: 10px 10px 8px;
+  border-bottom: 1px solid var(--sb-border);
+  flex-shrink: 0;
+}
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 5px;
+  padding: 5px 9px;
+}
+.search-box svg { color: var(--sb-text3); flex-shrink: 0; }
+.search-box input {
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--sb-text);
+  font-family: var(--mono);
+  font-size: 11px;
+  width: 100%;
+}
+.search-box input::placeholder { color: var(--sb-text3); }
+
+.sidebar-label {
+  padding: 8px 12px 4px;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--sb-text3);
+  flex-shrink: 0;
+}
+
+.sidebar-tree {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 12px;
+}
+.sidebar-tree::-webkit-scrollbar { width: 3px; }
+.sidebar-tree::-webkit-scrollbar-track { background: transparent; }
+.sidebar-tree::-webkit-scrollbar-thumb { background: var(--sb-border); border-radius: 3px; }
+
+/* ── TREE NODES ── */
+.tree-course { margin: 1px 6px; }
+
+.course-row {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 8px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background var(--transition);
+  user-select: none;
+}
+.course-row:hover { background: var(--sb-hover); }
+.course-row.active { background: var(--sb-active); }
+
+.tree-arrow {
+  width: 14px; height: 14px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--sb-text3);
+  font-size: 9px;
+  transition: transform var(--transition);
+  flex-shrink: 0;
+}
+.tree-arrow.open { transform: rotate(90deg); }
+
+.folder-icon { font-size: 13px; flex-shrink: 0; }
+
+.course-name-label {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--sb-text);
+  flex: 1;
+}
+.course-row.active .course-name-label { color: #b8f0c8; }
+
+.course-badges { display: flex; gap: 4px; align-items: center; }
+.badge-wrong {
+  font-size: 9px; font-family: var(--mono);
+  background: rgba(192,57,43,0.15);
+  border: 1px solid rgba(192,57,43,0.25);
+  border-radius: 3px; padding: 1px 5px; color: #e07070;
+}
+.badge-star {
+  font-size: 9px;
+  color: var(--gold);
+  opacity: 0.8;
+}
+
+/* COURSE CHILDREN */
+.course-children {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+.course-children.open { max-height: 2000px; }
+
+.tree-pq { margin: 1px 0 1px 18px; }
+
+.pq-row {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 8px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background var(--transition);
+  user-select: none;
+}
+.pq-row:hover { background: var(--sb-hover); }
+.pq-row.active { background: rgba(74,124,89,0.2); }
+
+.pq-icon { font-size: 11px; flex-shrink: 0; color: var(--sb-text3); }
+.pq-row.active .pq-icon { color: var(--accent2); }
+.pq-label-text {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--sb-text2);
+  flex: 1;
+}
+.pq-row.active .pq-label-text { color: var(--accent2); }
+.pq-wrong-badge {
+  font-size: 9px; background: rgba(192,57,43,0.12);
+  border: 1px solid rgba(192,57,43,0.2);
+  border-radius: 10px; padding: 0 5px; color: #d07070;
+}
+
+.pq-children {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.25s cubic-bezier(0.4,0,0.2,1);
+}
+.pq-children.open { max-height: 1000px; }
+
+/* Q ROWS in sidebar */
+.tree-q { margin: 1px 0 1px 16px; }
+.q-sidebar-row {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 8px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background var(--transition);
+}
+.q-sidebar-row:hover { background: var(--sb-hover); }
+.q-sidebar-row.active { background: rgba(74,124,89,0.15); }
+
+.q-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--sb-text3);
+  flex-shrink: 0;
+}
+.q-sidebar-row.has-wrong .q-dot { background: #d07070; }
+.q-sidebar-row.active .q-dot { background: var(--accent2); box-shadow: 0 0 5px rgba(106,171,128,0.5); }
+
+.q-sidebar-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--sb-text2);
+  flex: 1;
+}
+.q-sidebar-row.active .q-sidebar-label { color: var(--accent2); }
+
+.q-sidebar-star {
+  font-size: 11px;
+  cursor: pointer;
+  color: var(--sb-text3);
+  padding: 2px;
+  transition: color var(--transition), transform var(--transition);
+  background: none; border: none;
+  line-height: 1;
+}
+.q-sidebar-star:hover { color: var(--gold); transform: scale(1.15); }
+.q-sidebar-star.starred { color: var(--gold); }
+
+.q-sidebar-count {
+  font-size: 9px;
+  font-family: var(--mono);
+  color: #d07070;
+  background: rgba(192,57,43,0.1);
+  border: 1px solid rgba(192,57,43,0.2);
+  border-radius: 10px;
+  padding: 0 5px;
+  min-width: 18px;
+  text-align: center;
+}
+
+/* ── MAIN CONTENT ── */
+.main-content {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* BREADCRUMB */
+.breadcrumb-bar {
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  display: flex; align-items: center; gap: 6px;
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--text3);
+}
+.bc-sep { color: var(--border); }
+.bc-item { cursor: pointer; transition: color var(--transition); }
+.bc-item:hover { color: var(--accent); }
+.bc-item.active { color: var(--text); font-weight: 500; }
+
+/* CONTENT PANELS */
+.content-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+.content-area::-webkit-scrollbar { width: 5px; }
+.content-area::-webkit-scrollbar-track { background: transparent; }
+.content-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
+
+/* ── HOME / OVERVIEW PANEL ── */
+.panel { display: none; padding: 24px; }
+.panel.visible { display: block; }
+
+.panel-header {
+  margin-bottom: 20px;
+}
+.panel-title {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--text);
+  letter-spacing: -0.3px;
+  margin-bottom: 4px;
+}
+.panel-sub { font-size: 11px; color: var(--text3); }
+
+/* STATS GRID */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.stat-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius2);
+  padding: 14px 16px;
+}
+.stat-card .val {
+  font-family: var(--mono);
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.stat-card .val.red { color: var(--red); }
+.stat-card .val.gold { color: var(--gold); }
+.stat-card .val.green { color: var(--accent); }
+.stat-card .lbl { font-size: 10px; color: var(--text3); letter-spacing: 0.5px; }
+
+/* COURSE LIST (overview) */
+.course-list-section { }
+.section-title {
+  font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--text3); margin-bottom: 10px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.section-action {
+  font-size: 10px; color: var(--accent); cursor: pointer;
+  letter-spacing: 0; text-transform: none;
+}
+
+.course-overview-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius2);
+  margin-bottom: 8px;
+  overflow: hidden;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.course-overview-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 12px rgba(74,124,89,0.08);
+}
+
+.coc-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px; cursor: pointer; user-select: none;
+}
+.coc-arrow {
+  width: 18px; height: 18px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 9px; color: var(--text3);
+  transition: transform var(--transition), background var(--transition);
+  flex-shrink: 0;
+}
+.coc-arrow.open { transform: rotate(90deg); background: var(--accent-lt); color: var(--accent); border-color: var(--accent); }
+
+.coc-info { flex: 1; }
+.coc-name {
+  font-family: var(--mono);
+  font-size: 13px; font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.2px;
+}
+.coc-meta { display: flex; gap: 8px; align-items: center; margin-top: 3px; }
+.coc-tag {
+  font-size: 9px;
+  background: var(--bg); border: 1px solid var(--border2);
+  border-radius: 3px; padding: 1px 6px; color: var(--text3);
+}
+.coc-wrong {
+  font-size: 9px;
+  background: var(--red-lt); border: 1px solid rgba(192,57,43,0.2);
+  border-radius: 3px; padding: 1px 6px; color: var(--red);
+}
+.coc-starred {
+  font-size: 9px;
+  background: var(--gold-lt); border: 1px solid rgba(200,155,60,0.25);
+  border-radius: 3px; padding: 1px 6px; color: var(--gold);
+}
+
+/* PROGRESS BAR */
+.coc-progress {
+  width: 100px;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 3px;
+}
+.progress-bar {
+  width: 100%; height: 4px;
+  background: var(--bg);
+  border-radius: 2px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.6s ease;
+}
+.progress-fill.good { background: var(--accent); }
+.progress-fill.mid { background: var(--gold); }
+.progress-fill.poor { background: var(--red); }
+.progress-label { font-size: 9px; color: var(--text3); }
+
+/* COURSE BODY */
+.coc-body {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.35s cubic-bezier(0.4,0,0.2,1);
+  border-top: 0px solid var(--border);
+}
+.coc-body.open {
+  max-height: 3000px;
+  border-top-width: 1px;
+}
+
+/* MODULE TABLE */
+.module-table { padding: 8px 16px 12px; }
+.module-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all var(--transition);
+  margin-bottom: 2px;
+}
+.module-row:hover { background: var(--bg); border-color: var(--border2); }
+.module-row.active { background: var(--accent-lt); border-color: rgba(74,124,89,0.3); }
+
+.module-icon { font-size: 12px; flex-shrink: 0; color: var(--text3); }
+.module-row.active .module-icon { color: var(--accent); }
+
+.module-name {
+  font-family: var(--mono); font-size: 12px; font-weight: 500;
+  color: var(--text2); flex: 1;
+}
+.module-row.active .module-name { color: var(--accent); }
+
+.module-stats { display: flex; gap: 6px; align-items: center; }
+.mod-stat-wrong {
+  font-size: 10px; color: var(--red);
+  background: var(--red-lt); border: 1px solid rgba(192,57,43,0.15);
+  border-radius: 4px; padding: 1px 6px; font-family: var(--mono);
+}
+.mod-stat-ok {
+  font-size: 10px; color: var(--accent);
+  background: var(--accent-lt); border: 1px solid rgba(74,124,89,0.2);
+  border-radius: 4px; padding: 1px 6px; font-family: var(--mono);
+}
+
+.module-children {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.25s ease;
+  padding-left: 32px;
+}
+.module-children.open { max-height: 1000px; }
+
+/* QUESTION ROWS inside main */
+.q-main-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all var(--transition);
+  margin-bottom: 2px;
+}
+.q-main-row:hover { background: var(--bg); border-color: var(--border2); }
+.q-main-row.expanded { background: var(--bg); border-color: var(--border); }
+
+.q-arrow {
+  font-size: 9px; color: var(--text3);
+  transition: transform var(--transition);
+  width: 14px; text-align: center; flex-shrink: 0;
+}
+.q-arrow.open { transform: rotate(90deg); color: var(--accent); }
+
+.q-main-label {
+  font-family: var(--mono); font-size: 12px; font-weight: 500;
+  color: var(--text2); flex: 1;
+}
+.q-main-row.expanded .q-main-label { color: var(--text); }
+
+.q-star-btn {
+  background: none; border: none; cursor: pointer;
+  font-size: 13px; color: var(--text3);
+  padding: 2px 4px;
+  transition: color var(--transition), transform var(--transition);
+  line-height: 1;
+  border-radius: 4px;
+}
+.q-star-btn:hover { color: var(--gold); transform: scale(1.15); background: var(--gold-lt); }
+.q-star-btn.starred { color: var(--gold); }
+
+.q-wrong-pill {
+  font-family: var(--mono); font-size: 10px;
+  background: var(--red-lt); border: 1px solid rgba(192,57,43,0.2);
+  border-radius: 10px; padding: 1px 8px; color: var(--red);
+  font-weight: 600;
+}
+.q-ok-pill {
+  font-family: var(--mono); font-size: 10px;
+  background: var(--accent-lt); border: 1px solid rgba(74,124,89,0.2);
+  border-radius: 10px; padding: 1px 8px; color: var(--accent);
+}
+
+/* QUESTION DETAIL PANEL */
+.q-detail {
+  overflow: hidden; max-height: 0;
+  transition: max-height 0.3s ease;
+  padding-left: 22px;
+}
+.q-detail.open { max-height: 600px; }
+
+.q-detail-inner {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  padding: 12px 14px;
+}
+
+.q-detail-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.q-detail-title {
+  font-size: 11px; font-weight: 600; color: var(--text);
+  font-family: var(--mono);
+  display: flex; align-items: center; gap: 8px;
+}
+.q-detail-summary {
+  display: flex; gap: 16px;
+}
+.qd-stat { font-size: 10px; color: var(--text3); }
+.qd-stat strong { color: var(--text); font-weight: 600; }
+
+.variants-label {
+  font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--text3); margin-bottom: 6px;
+}
+
+.variant-rows { display: flex; flex-direction: column; gap: 3px; }
+
+.variant-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all var(--transition);
+}
+.variant-row:hover { background: var(--red-lt); border-color: rgba(192,57,43,0.15); }
+.variant-row.active { background: rgba(74,124,89,0.06); border-color: rgba(74,124,89,0.25); }
+
+.v-chip {
+  width: 24px; height: 24px;
+  border-radius: 5px;
+  background: var(--red-lt);
+  border: 1px solid rgba(192,57,43,0.2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700; color: var(--red);
+  font-family: var(--mono);
+  flex-shrink: 0;
+}
+.variant-row.active .v-chip {
+  background: var(--accent-lt);
+  border-color: rgba(74,124,89,0.3);
+  color: var(--accent);
+}
+.v-name { font-family: var(--mono); font-size: 11px; color: var(--text2); flex: 1; }
+.variant-row.active .v-name { color: var(--accent); }
+.v-date { font-size: 10px; color: var(--text3); }
+.v-journal-btn {
+  font-size: 10px; color: var(--text3);
+  transition: color var(--transition);
+}
+.variant-row:hover .v-journal-btn { color: var(--accent); }
+.variant-row.active .v-journal-btn { color: var(--accent); }
+
+/* ── JOURNAL PANEL (right side) ── */
+.journal-pane {
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+  border-top: 1px solid var(--border);
+  border-radius: 12px 0 0 0;
+  padding: 20px;
+  margin: 0;
+  display: none;
+  animation: fadeSlide 0.2s ease;
+  min-width: 280px;
+  overflow-y: auto;
+}
+.journal-pane.visible { display: block; }
+@keyframes fadeSlide {
+  from { opacity: 0; transform: translateX(8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* Split layout when journal open */
+.content-area.split {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+}
+.scrollable-main { overflow-y: auto; }
+.scrollable-main::-webkit-scrollbar { width: 5px; }
+.scrollable-main::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
+
+.journal-pane-header {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border2);
+}
+.jp-close {
+  float: right;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 3px 8px;
+  font-size: 11px;
+  color: var(--text3);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.jp-close:hover { border-color: var(--red); color: var(--red); background: var(--red-lt); }
+
+.jp-title {
+  font-family: var(--serif);
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+.jp-meta {
+  font-size: 10px; color: var(--text3);
+  font-family: var(--mono);
+}
+
+.jp-path {
+  display: flex; gap: 4px; align-items: center; flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.jp-path-chip {
+  font-size: 10px; font-family: var(--mono);
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 4px; padding: 2px 7px; color: var(--text3);
+}
+.jp-path-sep { color: var(--border); font-size: 10px; }
+
+.jp-entry-label {
+  font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--text3); margin-bottom: 8px;
+}
+.jp-entry-body {
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  padding: 12px 14px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--text);
+  font-family: var(--mono);
+  margin-bottom: 14px;
+}
+
+.jp-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.jp-tag {
+  font-size: 10px; font-family: var(--mono);
+  background: var(--accent-lt); border: 1px solid rgba(74,124,89,0.25);
+  border-radius: 10px; padding: 2px 9px; color: var(--accent);
+}
+.jp-tag.error {
+  background: var(--red-lt); border-color: rgba(192,57,43,0.2); color: var(--red);
+}
+
+.jp-notes-label {
+  font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--text3); margin-bottom: 6px;
+}
+.jp-notes {
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 11px;
+  color: var(--text2);
+  font-family: var(--mono);
+  line-height: 1.6;
+}
+
+/* ── QUICK-WRITE POPUP ── */
+.qw-popup {
+  display: none;
+  position: fixed;
+  bottom: 24px; right: 24px;
+  width: 320px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius2);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.15);
+  z-index: 1000;
+  animation: popUp 0.2s ease;
+}
+.qw-popup.visible { display: block; }
+@keyframes popUp {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.qw-header {
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--border2);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.qw-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.qw-subtitle { font-size: 10px; color: var(--text3); font-family: var(--mono); margin-top: 1px; }
+.qw-close {
+  background: none; border: none; cursor: pointer;
+  font-size: 16px; color: var(--text3); line-height: 1;
+  padding: 2px;
+}
+.qw-close:hover { color: var(--red); }
+
+.qw-body { padding: 12px 14px; }
+.qw-label { font-size: 10px; color: var(--text3); margin-bottom: 5px; letter-spacing: 0.5px; }
+.qw-textarea {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 9px 11px;
+  font-size: 12px;
+  font-family: var(--mono);
+  color: var(--text);
+  resize: vertical;
+  min-height: 80px;
+  outline: none;
+  line-height: 1.6;
+  transition: border-color var(--transition);
+}
+.qw-textarea:focus { border-color: var(--accent); }
+
+.qw-footer {
+  padding: 0 14px 12px;
+  display: flex; gap: 8px; justify-content: flex-end;
+}
+.qw-btn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.qw-btn.cancel {
+  background: var(--bg); border: 1px solid var(--border); color: var(--text3);
+}
+.qw-btn.cancel:hover { border-color: var(--text3); color: var(--text); }
+.qw-btn.save {
+  background: var(--accent); border: 1px solid var(--accent); color: #fff;
+}
+.qw-btn.save:hover { background: #3d6649; }
+
+/* ── EMPTY STATE ── */
+.empty-state {
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--text3);
+}
+.empty-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
+.empty-title { font-family: var(--serif); font-size: 18px; color: var(--text2); margin-bottom: 6px; }
+.empty-sub { font-size: 11px; line-height: 1.6; }
+
+/* ── STARRED PANEL ── */
+.starred-list { display: flex; flex-direction: column; gap: 8px; }
+.starred-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--gold);
+  border-radius: var(--radius2);
+  padding: 12px 14px;
+  display: flex; align-items: center; gap: 12px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.starred-card:hover { border-color: var(--gold); box-shadow: 0 2px 8px rgba(200,155,60,0.1); }
+.sc-icon { font-size: 18px; flex-shrink: 0; }
+.sc-info { flex: 1; }
+.sc-path { font-size: 10px; color: var(--text3); font-family: var(--mono); margin-bottom: 2px; }
+.sc-label { font-size: 12px; font-weight: 600; color: var(--text); font-family: var(--mono); }
+.sc-meta { font-size: 10px; color: var(--text3); margin-top: 1px; }
+.sc-wrong { font-size: 10px; color: var(--red); background: var(--red-lt); border: 1px solid rgba(192,57,43,0.15); border-radius: 4px; padding: 1px 6px; }
+
+/* ── JOURNAL TAB LIST ── */
+.journal-list { display: flex; flex-direction: column; gap: 8px; }
+.journal-entry-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius2);
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: all var(--transition);
+  border-left: 3px solid var(--accent);
+}
+.journal-entry-card:hover { border-color: var(--accent); box-shadow: 0 2px 8px rgba(74,124,89,0.08); }
+.jec-path { font-size: 10px; color: var(--text3); font-family: var(--mono); margin-bottom: 5px; }
+.jec-preview { font-size: 12px; color: var(--text2); line-height: 1.5; margin-bottom: 6px; }
+.jec-footer { display: flex; align-items: center; justify-content: space-between; }
+.jec-date { font-size: 10px; color: var(--text3); font-family: var(--mono); }
+.jec-tags { display: flex; gap: 4px; }
+.jec-tag { font-size: 9px; background: var(--accent-lt); border: 1px solid rgba(74,124,89,0.2); border-radius: 10px; padding: 1px 7px; color: var(--accent); }
+
+/* ── UTILITY ── */
+.divider { height: 1px; background: var(--border2); margin: 8px 0; }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ═══════════════════════════════ TITLEBAR ═══════════════════════════════ -->
+  <header class="titlebar">
+    <div class="titlebar-logo">
+      <div class="logo-mark">PL</div>
+      <div>
+        <div class="logo-name">PrairieLearn Tracker</div>
+        <div class="logo-sub">mistake journal · v1.0</div>
+      </div>
+    </div>
+    <div class="titlebar-sep"></div>
+    <nav class="titlebar-tabs">
+      <div class="t-tab active" onclick="switchTab('courses')">Courses</div>
+      <div class="t-tab" onclick="switchTab('starred')">⭐ Starred</div>
+      <div class="t-tab" onclick="switchTab('journal')">Journal</div>
+    </nav>
+    <div class="titlebar-right">
+      <div class="sync-status"><span class="sync-dot"></span>Synced 2m ago</div>
+      <button class="tb-btn" onclick="showQWPopup()">+ Wrong Answer</button>
+      <button class="tb-btn">↻ Sync</button>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════ SIDEBAR ═══════════════════════════════ -->
+  <aside class="sidebar">
+    <div class="sidebar-search">
+      <div class="search-box">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" placeholder="Find questions..." oninput="filterTree(this.value)">
+      </div>
+    </div>
+    <div class="sidebar-label">Explorer</div>
+    <div class="sidebar-tree" id="sidebarTree">
+
+      <!-- CPSC 213 -->
+      <div class="tree-course">
+        <div class="course-row" onclick="toggleSidebarCourse(this)">
+          <div class="tree-arrow">▶</div>
+          <span class="folder-icon">📁</span>
+          <span class="course-name-label">CPSC 213</span>
+          <div class="course-badges">
+            <span class="badge-wrong">✗9</span>
+          </div>
+        </div>
+        <div class="course-children">
+          <!-- PQ.1 -->
+          <div class="tree-pq">
+            <div class="pq-row" onclick="toggleSidebarPQ(this)">
+              <div class="tree-arrow">▶</div>
+              <span class="pq-icon">📄</span>
+              <span class="pq-label-text">PQ.1</span>
+              <span class="pq-wrong-badge">✗5</span>
+            </div>
+            <div class="pq-children">
+              <div class="tree-q">
+                <div class="q-sidebar-row has-wrong" onclick="selectQuestion(this, 'CPSC 213','PQ.1','PQ.1.1')">
+                  <div class="q-dot"></div>
+                  <span class="q-sidebar-label">PQ.1.1</span>
+                  <button class="q-sidebar-star" onclick="toggleSidebarStar(event,this)">☆</button>
+                  <span class="q-sidebar-count">3</span>
+                </div>
+              </div>
+              <div class="tree-q">
+                <div class="q-sidebar-row has-wrong" onclick="selectQuestion(this,'CPSC 213','PQ.1','PQ.1.2')">
+                  <div class="q-dot"></div>
+                  <span class="q-sidebar-label">PQ.1.2</span>
+                  <button class="q-sidebar-star starred" onclick="toggleSidebarStar(event,this)">★</button>
+                  <span class="q-sidebar-count">2</span>
+                </div>
+              </div>
+              <div class="tree-q">
+                <div class="q-sidebar-row" onclick="selectQuestion(this,'CPSC 213','PQ.1','PQ.1.3')">
+                  <div class="q-dot"></div>
+                  <span class="q-sidebar-label">PQ.1.3</span>
+                  <button class="q-sidebar-star" onclick="toggleSidebarStar(event,this)">☆</button>
+                  <span class="q-sidebar-count" style="color:var(--accent);background:var(--accent-lt);border-color:rgba(74,124,89,0.2)">✓</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- PQ.2 -->
+          <div class="tree-pq">
+            <div class="pq-row" onclick="toggleSidebarPQ(this)">
+              <div class="tree-arrow">▶</div>
+              <span class="pq-icon">📄</span>
+              <span class="pq-label-text">PQ.2</span>
+              <span class="pq-wrong-badge">✗4</span>
+            </div>
+            <div class="pq-children">
+              <div class="tree-q">
+                <div class="q-sidebar-row has-wrong" onclick="selectQuestion(this,'CPSC 213','PQ.2','PQ.2.1')">
+                  <div class="q-dot"></div>
+                  <span class="q-sidebar-label">PQ.2.1</span>
+                  <button class="q-sidebar-star" onclick="toggleSidebarStar(event,this)">☆</button>
+                  <span class="q-sidebar-count">4</span>
+                </div>
+              </div>
+              <div class="tree-q">
+                <div class="q-sidebar-row" onclick="selectQuestion(this,'CPSC 213','PQ.2','PQ.2.2')">
+                  <div class="q-dot"></div>
+                  <span class="q-sidebar-label">PQ.2.2</span>
+                  <button class="q-sidebar-star" onclick="toggleSidebarStar(event,this)">☆</button>
+                  <span class="q-sidebar-count" style="color:var(--accent);background:var(--accent-lt);border-color:rgba(74,124,89,0.2)">✓</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- PQ.3 -->
+          <div class="tree-pq">
+            <div class="pq-row" onclick="toggleSidebarPQ(this)">
+              <div class="tree-arrow">▶</div>
+              <span class="pq-icon">📄</span>
+              <span class="pq-label-text">PQ.3</span>
+              <span style="font-size:9px;color:var(--accent);background:var(--accent-lt);border:1px solid rgba(74,124,89,0.2);border-radius:10px;padding:0 5px">✓ clean</span>
+            </div>
+            <div class="pq-children">
+              <div class="tree-q">
+                <div class="q-sidebar-row" onclick="selectQuestion(this,'CPSC 213','PQ.3','PQ.3.1')">
+                  <div class="q-dot" style="background:var(--accent)"></div>
+                  <span class="q-sidebar-label">PQ.3.1</span>
+                  <button class="q-sidebar-star" onclick="toggleSidebarStar(event,this)">☆</button>
+                  <span class="q-sidebar-count" style="color:var(--accent);background:var(--accent-lt);border-color:rgba(74,124,89,0.2)">✓</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CPSC 221 -->
+      <div class="tree-course">
+        <div class="course-row" onclick="toggleSidebarCourse(this)">
+          <div class="tree-arrow">▶</div>
+          <span class="folder-icon">📁</span>
+          <span class="course-name-label">CPSC 221</span>
+          <div class="course-badges">
+            <span class="badge-wrong">✗12</span>
+            <span class="badge-star">⭐3</span>
+          </div>
+        </div>
+        <div class="course-children">
+          <div class="tree-pq">
+            <div class="pq-row" onclick="toggleSidebarPQ(this)">
+              <div class="tree-arrow">▶</div>
+              <span class="pq-icon">📄</span>
+              <span class="pq-label-text">PQ.1</span>
+              <span class="pq-wrong-badge">✗7</span>
+            </div>
+            <div class="pq-children">
+              <div class="tree-q">
+                <div class="q-sidebar-row has-wrong" onclick="selectQuestion(this,'CPSC 221','PQ.1','PQ.1.1')">
+                  <div class="q-dot"></div>
+                  <span class="q-sidebar-label">PQ.1.1</span>
+                  <button class="q-sidebar-star starred" onclick="toggleSidebarStar(event,this)">★</button>
+                  <span class="q-sidebar-count">5</span>
+                </div>
+              </div>
+              <div class="tree-q">
+                <div class="q-sidebar-row has-wrong" onclick="selectQuestion(this,'CPSC 221','PQ.1','PQ.1.2')">
+                  <div class="q-dot"></div>
+                  <span class="q-sidebar-label">PQ.1.2</span>
+                  <button class="q-sidebar-star" onclick="toggleSidebarStar(event,this)">☆</button>
+                  <span class="q-sidebar-count">2</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="tree-pq">
+            <div class="pq-row" onclick="toggleSidebarPQ(this)">
+              <div class="tree-arrow">▶</div>
+              <span class="pq-icon">📄</span>
+              <span class="pq-label-text">PQ.2</span>
+              <span class="pq-wrong-badge">✗5</span>
+            </div>
+            <div class="pq-children">
+              <div class="tree-q">
+                <div class="q-sidebar-row has-wrong" onclick="selectQuestion(this,'CPSC 221','PQ.2','PQ.2.1')">
+                  <div class="q-dot"></div>
+                  <span class="q-sidebar-label">PQ.2.1</span>
+                  <button class="q-sidebar-star starred" onclick="toggleSidebarStar(event,this)">★</button>
+                  <span class="q-sidebar-count">5</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CPSC 121 -->
+      <div class="tree-course">
+        <div class="course-row" onclick="toggleSidebarCourse(this)">
+          <div class="tree-arrow">▶</div>
+          <span class="folder-icon">📁</span>
+          <span class="course-name-label">CPSC 121</span>
+          <div class="course-badges"><span class="badge-wrong">✗6</span></div>
+        </div>
+        <div class="course-children">
+          <div class="tree-pq">
+            <div class="pq-row" onclick="toggleSidebarPQ(this)">
+              <div class="tree-arrow">▶</div>
+              <span class="pq-icon">📄</span>
+              <span class="pq-label-text">PQ.1</span>
+              <span class="pq-wrong-badge">✗6</span>
+            </div>
+            <div class="pq-children">
+              <div class="tree-q">
+                <div class="q-sidebar-row has-wrong" onclick="selectQuestion(this,'CPSC 121','PQ.1','PQ.1.1')">
+                  <div class="q-dot"></div>
+                  <span class="q-sidebar-label">PQ.1.1</span>
+                  <button class="q-sidebar-star" onclick="toggleSidebarStar(event,this)">☆</button>
+                  <span class="q-sidebar-count">6</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CPSC 103 -->
+      <div class="tree-course">
+        <div class="course-row" onclick="toggleSidebarCourse(this)">
+          <div class="tree-arrow">▶</div>
+          <span class="folder-icon">📁</span>
+          <span class="course-name-label">CPSC 103</span>
+          <div class="course-badges"></div>
+        </div>
+        <div class="course-children">
+          <div class="tree-pq">
+            <div class="pq-row" onclick="toggleSidebarPQ(this)">
+              <div class="tree-arrow">▶</div>
+              <span class="pq-icon">📄</span>
+              <span class="pq-label-text">PQ.1</span>
+              <span style="font-size:9px;color:var(--accent);background:var(--accent-lt);border:1px solid rgba(74,124,89,0.2);border-radius:10px;padding:0 5px">✓ clean</span>
+            </div>
+            <div class="pq-children">
+              <div class="tree-q">
+                <div class="q-sidebar-row" onclick="selectQuestion(this,'CPSC 103','PQ.1','PQ.1.1')">
+                  <div class="q-dot" style="background:var(--accent)"></div>
+                  <span class="q-sidebar-label">PQ.1.1</span>
+                  <button class="q-sidebar-star" onclick="toggleSidebarStar(event,this)">☆</button>
+                  <span class="q-sidebar-count" style="color:var(--accent);background:var(--accent-lt);border-color:rgba(74,124,89,0.2)">✓</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PHYS 158 -->
+      <div class="tree-course">
+        <div class="course-row" onclick="toggleSidebarCourse(this)">
+          <div class="tree-arrow">▶</div>
+          <span class="folder-icon">📁</span>
+          <span class="course-name-label">PHYS 158</span>
+          <div class="course-badges"><span class="badge-wrong">✗8</span><span class="badge-star">⭐2</span></div>
+        </div>
+        <div class="course-children">
+          <div class="tree-pq">
+            <div class="pq-row" onclick="toggleSidebarPQ(this)">
+              <div class="tree-arrow">▶</div>
+              <span class="pq-icon">📄</span>
+              <span class="pq-label-text">PQ.1</span>
+              <span class="pq-wrong-badge">✗8</span>
+            </div>
+            <div class="pq-children">
+              <div class="tree-q">
+                <div class="q-sidebar-row has-wrong" onclick="selectQuestion(this,'PHYS 158','PQ.1','PQ.1.1')">
+                  <div class="q-dot"></div>
+                  <span class="q-sidebar-label">PQ.1.1</span>
+                  <button class="q-sidebar-star starred" onclick="toggleSidebarStar(event,this)">★</button>
+                  <span class="q-sidebar-count">8</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PHYS 159 -->
+      <div class="tree-course">
+        <div class="course-row" onclick="toggleSidebarCourse(this)">
+          <div class="tree-arrow">▶</div>
+          <span class="folder-icon">📁</span>
+          <span class="course-name-label">PHYS 159</span>
+          <div class="course-badges"></div>
+        </div>
+        <div class="course-children">
+          <div class="tree-pq">
+            <div class="pq-row" onclick="toggleSidebarPQ(this)">
+              <div class="tree-arrow">▶</div>
+              <span class="pq-icon">📄</span>
+              <span class="pq-label-text">PQ.1</span>
+              <span style="font-size:9px;color:var(--accent);background:var(--accent-lt);border:1px solid rgba(74,124,89,0.2);border-radius:10px;padding:0 5px">✓ clean</span>
+            </div>
+            <div class="pq-children">
+              <div class="tree-q">
+                <div class="q-sidebar-row" onclick="selectQuestion(this,'PHYS 159','PQ.1','PQ.1.1')">
+                  <div class="q-dot" style="background:var(--accent)"></div>
+                  <span class="q-sidebar-label">PQ.1.1</span>
+                  <button class="q-sidebar-star" onclick="toggleSidebarStar(event,this)">☆</button>
+                  <span class="q-sidebar-count" style="color:var(--accent);background:var(--accent-lt);border-color:rgba(74,124,89,0.2)">✓</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /sidebar-tree -->
+  </aside>
+
+  <!-- ═══════════════════════════════ MAIN CONTENT ═══════════════════════════ -->
+  <div class="main-content">
+    <div class="breadcrumb-bar" id="breadcrumb">
+      <span class="bc-item active">Overview</span>
+    </div>
+
+    <div class="content-area" id="contentArea">
+
+      <!-- ── COURSES TAB ── -->
+      <div class="panel visible" id="panel-courses">
+        <div class="panel-header">
+          <div class="panel-title">My Courses</div>
+          <div class="panel-sub">Spring 2025 · 6 enrolled · 35 incorrect attempts tracked</div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="val red">35</div>
+            <div class="lbl">Wrong Attempts</div>
+          </div>
+          <div class="stat-card">
+            <div class="val gold">8</div>
+            <div class="lbl">Starred Questions</div>
+          </div>
+          <div class="stat-card">
+            <div class="val green">19</div>
+            <div class="lbl">Journal Entries</div>
+          </div>
+          <div class="stat-card">
+            <div class="val" style="color:var(--text)">6</div>
+            <div class="lbl">Active Courses</div>
+          </div>
+        </div>
+
+        <div class="section-title">
+          All Courses
+          <span class="section-action">Sort by wrong ↓</span>
+        </div>
+
+        <!-- CPSC 213 -->
+        <div class="course-overview-card">
+          <div class="coc-header" onclick="toggleMainCourse(this)">
+            <div class="coc-arrow">▶</div>
+            <span style="font-size:20px">📁</span>
+            <div class="coc-info">
+              <div class="coc-name">CPSC 213 — Introduction to Computer Systems</div>
+              <div class="coc-meta">
+                <span class="coc-tag">SP25</span>
+                <span class="coc-tag">UBC</span>
+                <span class="coc-wrong">✗ 9 wrong</span>
+                <span class="coc-starred">⭐ 2 starred</span>
+              </div>
+            </div>
+            <div class="coc-progress">
+              <div class="progress-bar"><div class="progress-fill mid" style="width:62%"></div></div>
+              <div class="progress-label">62% correct</div>
+            </div>
+          </div>
+          <div class="coc-body">
+            <div class="module-table">
+
+              <!-- PQ.1 in main -->
+              <div class="module-row" onclick="toggleMainPQ(this)">
+                <div class="tree-arrow">▶</div>
+                <span class="module-icon">📄</span>
+                <span class="module-name">PQ.1 — Memory & Addressing</span>
+                <div class="module-stats">
+                  <span class="mod-stat-wrong">✗ 5</span>
+                  <span class="mod-stat-ok">2 ✓</span>
+                </div>
+              </div>
+              <div class="module-children">
+                <!-- Q 1.1 -->
+                <div class="q-main-row" id="qm-213-1-1" onclick="toggleMainQ(this,'CPSC 213','PQ.1','PQ.1.1')">
+                  <div class="q-arrow">▶</div>
+                  <span class="q-main-label">PQ.1.1</span>
+                  <button class="q-star-btn" onclick="toggleMainStar(event,this)">☆</button>
+                  <span class="q-wrong-pill">✗ 3 wrong</span>
+                </div>
+                <div class="q-detail" id="qd-213-1-1">
+                  <div class="q-detail-inner">
+                    <div class="q-detail-header">
+                      <div class="q-detail-title">
+                        📊 PQ.1.1
+                        <span style="font-size:10px;color:var(--text3);font-weight:400">Memory addressing</span>
+                      </div>
+                      <div class="q-detail-summary">
+                        <div class="qd-stat">Attempts: <strong>3 wrong</strong></div>
+                        <div class="qd-stat">Starred: <strong>No</strong></div>
+                      </div>
+                    </div>
+                    <div class="variants-label">Wrong Variants</div>
+                    <div class="variant-rows">
+                      <div class="variant-row" onclick="openJournal(this,'CPSC 213','PQ.1','PQ.1.1','Variant 2','Feb 14, 2025','I forgot that byte-addressable memory means each address holds one byte, not one word. When computing an address offset I multiplied by 4 when I should have multiplied by 1.','byte addressing, memory layout','Always re-read the question: is it byte or word addressable?')">
+                        <div class="v-chip">V2</div>
+                        <div class="v-name">Variant 2</div>
+                        <div class="v-date">Feb 14</div>
+                        <div class="v-journal-btn">📝 View entry</div>
+                      </div>
+                      <div class="variant-row" onclick="openJournal(this,'CPSC 213','PQ.1','PQ.1.1','Variant 4','Feb 16, 2025','Same mistake as before — I miscounted the offset. The array was int so each element is 4 bytes and I forgot to multiply. I need to slow down and draw the array in memory first.','array indexing, pointer arithmetic','Draw the memory layout before computing.')">
+                        <div class="v-chip">V4</div>
+                        <div class="v-name">Variant 4</div>
+                        <div class="v-date">Feb 16</div>
+                        <div class="v-journal-btn">📝 View entry</div>
+                      </div>
+                      <div class="variant-row" onclick="openJournal(this,'CPSC 213','PQ.1','PQ.1.1','Variant 7','Feb 20, 2025','This time it was a struct with padding. I assumed it was packed but the compiler inserted padding bytes. Need to check struct sizes explicitly.','struct padding, alignment','Use sizeof() to check actual struct size.')">
+                        <div class="v-chip">V7</div>
+                        <div class="v-name">Variant 7</div>
+                        <div class="v-date">Feb 20</div>
+                        <div class="v-journal-btn">📝 View entry</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Q 1.2 -->
+                <div class="q-main-row" id="qm-213-1-2" onclick="toggleMainQ(this,'CPSC 213','PQ.1','PQ.1.2')">
+                  <div class="q-arrow">▶</div>
+                  <span class="q-main-label">PQ.1.2</span>
+                  <button class="q-star-btn starred" onclick="toggleMainStar(event,this)">★</button>
+                  <span class="q-wrong-pill">✗ 2 wrong</span>
+                </div>
+                <div class="q-detail" id="qd-213-1-2">
+                  <div class="q-detail-inner">
+                    <div class="q-detail-header">
+                      <div class="q-detail-title">📊 PQ.1.2 <span style="font-size:10px;color:var(--text3);font-weight:400">Pointer dereferencing</span></div>
+                      <div class="q-detail-summary">
+                        <div class="qd-stat">Attempts: <strong>2 wrong</strong></div>
+                        <div class="qd-stat">Starred: <strong style="color:var(--gold)">⭐ Yes</strong></div>
+                      </div>
+                    </div>
+                    <div class="variants-label">Wrong Variants</div>
+                    <div class="variant-rows">
+                      <div class="variant-row" onclick="openJournal(this,'CPSC 213','PQ.1','PQ.1.2','Variant 1','Feb 18, 2025','I confused *ptr++ with (*ptr)++. The precedence of ++ vs * tripped me up — need to always parenthesize when in doubt.','operator precedence, pointers','When mixing * and ++, always add parentheses to be explicit.')">
+                        <div class="v-chip">V1</div>
+                        <div class="v-name">Variant 1</div>
+                        <div class="v-date">Feb 18</div>
+                        <div class="v-journal-btn">📝 View entry</div>
+                      </div>
+                      <div class="variant-row" onclick="openJournal(this,'CPSC 213','PQ.1','PQ.1.2','Variant 3','Feb 22, 2025','Double-pointer arithmetic: **pp vs *pp. I tried to dereference one level too many.','double pointers, indirection','Draw a box diagram: box → box → value.')">
+                        <div class="v-chip">V3</div>
+                        <div class="v-name">Variant 3</div>
+                        <div class="v-date">Feb 22</div>
+                        <div class="v-journal-btn">📝 View entry</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Q 1.3 clean -->
+                <div class="q-main-row" onclick="toggleMainQ(this,'CPSC 213','PQ.1','PQ.1.3')">
+                  <div class="q-arrow">▶</div>
+                  <span class="q-main-label">PQ.1.3</span>
+                  <button class="q-star-btn" onclick="toggleMainStar(event,this)">☆</button>
+                  <span class="q-ok-pill">✓ No mistakes</span>
+                </div>
+                <div class="q-detail" id="qd-213-1-3">
+                  <div class="q-detail-inner">
+                    <div class="q-detail-header">
+                      <div class="q-detail-title">📊 PQ.1.3 <span style="font-size:10px;color:var(--text3)">Stack frames</span></div>
+                    </div>
+                    <div style="text-align:center;padding:16px;color:var(--text3);font-size:11px">
+                      🎉 No wrong variants recorded for this question.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- PQ.2 in main -->
+              <div class="module-row" onclick="toggleMainPQ(this)">
+                <div class="tree-arrow">▶</div>
+                <span class="module-icon">📄</span>
+                <span class="module-name">PQ.2 — Assembly & Registers</span>
+                <div class="module-stats">
+                  <span class="mod-stat-wrong">✗ 4</span>
+                  <span class="mod-stat-ok">1 ✓</span>
+                </div>
+              </div>
+              <div class="module-children">
+                <div class="q-main-row" onclick="toggleMainQ(this,'CPSC 213','PQ.2','PQ.2.1')">
+                  <div class="q-arrow">▶</div>
+                  <span class="q-main-label">PQ.2.1</span>
+                  <button class="q-star-btn" onclick="toggleMainStar(event,this)">☆</button>
+                  <span class="q-wrong-pill">✗ 4 wrong</span>
+                </div>
+                <div class="q-detail" id="qd-213-2-1">
+                  <div class="q-detail-inner">
+                    <div class="q-detail-header">
+                      <div class="q-detail-title">📊 PQ.2.1 <span style="font-size:10px;color:var(--text3)">Register file</span></div>
+                      <div class="q-detail-summary">
+                        <div class="qd-stat">Attempts: <strong>4 wrong</strong></div>
+                      </div>
+                    </div>
+                    <div class="variants-label">Wrong Variants</div>
+                    <div class="variant-rows">
+                      <div class="variant-row" onclick="openJournal(this,'CPSC 213','PQ.2','PQ.2.1','Variant 2','Mar 1, 2025','Confused which registers are caller-saved vs callee-saved. Specifically I assumed r8 was preserved across calls but it is not.','calling convention, registers','Memorize the register saving table.')">
+                        <div class="v-chip">V2</div>
+                        <div class="v-name">Variant 2</div>
+                        <div class="v-date">Mar 1</div>
+                        <div class="v-journal-btn">📝 View entry</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- PQ.3 -->
+              <div class="module-row" onclick="toggleMainPQ(this)">
+                <div class="tree-arrow">▶</div>
+                <span class="module-icon">📄</span>
+                <span class="module-name">PQ.3 — Caching</span>
+                <div class="module-stats">
+                  <span class="mod-stat-ok">3 ✓ clean</span>
+                </div>
+              </div>
+              <div class="module-children">
+                <div class="q-main-row" onclick="toggleMainQ(this,'CPSC 213','PQ.3','PQ.3.1')">
+                  <div class="q-arrow">▶</div>
+                  <span class="q-main-label">PQ.3.1</span>
+                  <button class="q-star-btn" onclick="toggleMainStar(event,this)">☆</button>
+                  <span class="q-ok-pill">✓ No mistakes</span>
+                </div>
+                <div class="q-detail" id="qd-213-3-1">
+                  <div class="q-detail-inner" style="text-align:center;padding:20px">
+                    <div style="font-size:20px;margin-bottom:6px">🎉</div>
+                    <div style="font-size:12px;color:var(--text3)">No wrong variants for PQ.3.1</div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- CPSC 221 -->
+        <div class="course-overview-card">
+          <div class="coc-header" onclick="toggleMainCourse(this)">
+            <div class="coc-arrow">▶</div>
+            <span style="font-size:20px">📁</span>
+            <div class="coc-info">
+              <div class="coc-name">CPSC 221 — Data Structures & Algorithms</div>
+              <div class="coc-meta">
+                <span class="coc-tag">SP25</span>
+                <span class="coc-tag">UBC</span>
+                <span class="coc-wrong">✗ 12 wrong</span>
+                <span class="coc-starred">⭐ 3 starred</span>
+              </div>
+            </div>
+            <div class="coc-progress">
+              <div class="progress-bar"><div class="progress-fill poor" style="width:40%"></div></div>
+              <div class="progress-label">40% correct</div>
+            </div>
+          </div>
+          <div class="coc-body">
+            <div class="module-table">
+              <div class="module-row" onclick="toggleMainPQ(this)">
+                <div class="tree-arrow">▶</div>
+                <span class="module-icon">📄</span>
+                <span class="module-name">PQ.1 — Binary Trees</span>
+                <div class="module-stats"><span class="mod-stat-wrong">✗ 7</span></div>
+              </div>
+              <div class="module-children">
+                <div class="q-main-row" onclick="toggleMainQ(this,'CPSC 221','PQ.1','PQ.1.1')">
+                  <div class="q-arrow">▶</div>
+                  <span class="q-main-label">PQ.1.1</span>
+                  <button class="q-star-btn starred" onclick="toggleMainStar(event,this)">★</button>
+                  <span class="q-wrong-pill">✗ 5 wrong</span>
+                </div>
+                <div class="q-detail" id="qd-221-1-1">
+                  <div class="q-detail-inner">
+                    <div class="q-detail-header">
+                      <div class="q-detail-title">📊 PQ.1.1 <span style="font-size:10px;color:var(--text3)">Tree traversal</span></div>
+                      <div class="q-detail-summary">
+                        <div class="qd-stat">Attempts: <strong>5 wrong</strong></div>
+                        <div class="qd-stat">Starred: <strong style="color:var(--gold)">⭐ Yes</strong></div>
+                      </div>
+                    </div>
+                    <div class="variants-label">Wrong Variants</div>
+                    <div class="variant-rows">
+                      <div class="variant-row" onclick="openJournal(this,'CPSC 221','PQ.1','PQ.1.1','Variant 1','Mar 3, 2025','I kept confusing in-order vs pre-order traversal. For in-order it is Left → Root → Right, but I wrote Root → Left → Right.','tree traversal, in-order','Make a cheat-sheet: in=LRR, pre=RLR, post=LLR.')">
+                        <div class="v-chip">V1</div><div class="v-name">Variant 1</div><div class="v-date">Mar 3</div><div class="v-journal-btn">📝 View entry</div>
+                      </div>
+                      <div class="variant-row" onclick="openJournal(this,'CPSC 221','PQ.1','PQ.1.1','Variant 3','Mar 5, 2025','Post-order traversal on a tree with 3 levels — I printed the root too early.','post-order, recursion','Think: post-order means you process children FIRST.')">
+                        <div class="v-chip">V3</div><div class="v-name">Variant 3</div><div class="v-date">Mar 5</div><div class="v-journal-btn">📝 View entry</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PHYS 158 -->
+        <div class="course-overview-card">
+          <div class="coc-header" onclick="toggleMainCourse(this)">
+            <div class="coc-arrow">▶</div>
+            <span style="font-size:20px">📁</span>
+            <div class="coc-info">
+              <div class="coc-name">PHYS 158 — Electricity & Magnetism</div>
+              <div class="coc-meta">
+                <span class="coc-tag">SP25</span>
+                <span class="coc-wrong">✗ 8 wrong</span>
+                <span class="coc-starred">⭐ 2 starred</span>
+              </div>
+            </div>
+            <div class="coc-progress">
+              <div class="progress-bar"><div class="progress-fill mid" style="width:55%"></div></div>
+              <div class="progress-label">55% correct</div>
+            </div>
+          </div>
+          <div class="coc-body">
+            <div class="module-table">
+              <div class="module-row" onclick="toggleMainPQ(this)">
+                <div class="tree-arrow">▶</div>
+                <span class="module-icon">📄</span>
+                <span class="module-name">PQ.1 — Gauss's Law</span>
+                <div class="module-stats"><span class="mod-stat-wrong">✗ 8</span></div>
+              </div>
+              <div class="module-children">
+                <div class="q-main-row" onclick="toggleMainQ(this,'PHYS 158','PQ.1','PQ.1.1')">
+                  <div class="q-arrow">▶</div>
+                  <span class="q-main-label">PQ.1.1</span>
+                  <button class="q-star-btn starred" onclick="toggleMainStar(event,this)">★</button>
+                  <span class="q-wrong-pill">✗ 8 wrong</span>
+                </div>
+                <div class="q-detail" id="qd-phys-1-1">
+                  <div class="q-detail-inner">
+                    <div class="q-detail-header">
+                      <div class="q-detail-title">📊 PQ.1.1 <span style="font-size:10px;color:var(--text3)">Gaussian surfaces</span></div>
+                    </div>
+                    <div class="variants-label">Wrong Variants</div>
+                    <div class="variant-rows">
+                      <div class="variant-row" onclick="openJournal(this,'PHYS 158','PQ.1','PQ.1.1','Variant 5','Mar 6, 2025','I chose the wrong Gaussian surface shape. For a cylindrical charge distribution I should use a cylinder, but I used a sphere.','Gauss law, Gaussian surface','Surface choice must MATCH the charge distribution symmetry.')">
+                        <div class="v-chip">V5</div><div class="v-name">Variant 5</div><div class="v-date">Mar 6</div><div class="v-journal-btn">📝 View entry</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Remaining courses collapsed -->
+        <div class="course-overview-card">
+          <div class="coc-header" onclick="toggleMainCourse(this)">
+            <div class="coc-arrow">▶</div>
+            <span style="font-size:20px">📁</span>
+            <div class="coc-info">
+              <div class="coc-name">CPSC 121 — Models of Computation</div>
+              <div class="coc-meta"><span class="coc-tag">SP25</span><span class="coc-wrong">✗ 6 wrong</span></div>
+            </div>
+            <div class="coc-progress">
+              <div class="progress-bar"><div class="progress-fill poor" style="width:48%"></div></div>
+              <div class="progress-label">48% correct</div>
+            </div>
+          </div>
+          <div class="coc-body">
+            <div class="module-table">
+              <div class="module-row" onclick="toggleMainPQ(this)">
+                <div class="tree-arrow">▶</div>
+                <span class="module-icon">📄</span>
+                <span class="module-name">PQ.1 — Logic Gates</span>
+                <div class="module-stats"><span class="mod-stat-wrong">✗ 6</span></div>
+              </div>
+              <div class="module-children">
+                <div class="q-main-row" onclick="toggleMainQ(this,'CPSC 121','PQ.1','PQ.1.1')">
+                  <div class="q-arrow">▶</div>
+                  <span class="q-main-label">PQ.1.1</span>
+                  <button class="q-star-btn" onclick="toggleMainStar(event,this)">☆</button>
+                  <span class="q-wrong-pill">✗ 6 wrong</span>
+                </div>
+                <div class="q-detail" id="qd-121-1-1">
+                  <div class="q-detail-inner">
+                    <div class="q-detail-header">
+                      <div class="q-detail-title">📊 PQ.1.1 <span style="font-size:10px;color:var(--text3)">Boolean algebra</span></div>
+                    </div>
+                    <div class="variants-label">Wrong Variants</div>
+                    <div class="variant-rows">
+                      <div class="variant-row" onclick="openJournal(this,'CPSC 121','PQ.1','PQ.1.1','Variant 2','Mar 4, 2025','I applied De Morgans law incorrectly. NOT(A AND B) is NOT A OR NOT B, not NOT A AND NOT B.','De Morgan, boolean algebra','NOT(A AND B) = (NOT A) OR (NOT B). Flip AND/OR and negate each.')">
+                        <div class="v-chip">V2</div><div class="v-name">Variant 2</div><div class="v-date">Mar 4</div><div class="v-journal-btn">📝 View entry</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="course-overview-card">
+          <div class="coc-header" onclick="toggleMainCourse(this)">
+            <div class="coc-arrow">▶</div>
+            <span style="font-size:20px">📁</span>
+            <div class="coc-info">
+              <div class="coc-name">CPSC 103 — Intro to Programming</div>
+              <div class="coc-meta"><span class="coc-tag">SP25</span><span class="mod-stat-ok" style="font-size:9px;border-radius:3px;padding:1px 6px">✓ All correct</span></div>
+            </div>
+            <div class="coc-progress">
+              <div class="progress-bar"><div class="progress-fill good" style="width:100%"></div></div>
+              <div class="progress-label">100% correct</div>
+            </div>
+          </div>
+          <div class="coc-body">
+            <div style="padding:16px;text-align:center;color:var(--text3);font-size:12px">🎉 No mistakes recorded for this course!</div>
+          </div>
+        </div>
+
+        <div class="course-overview-card">
+          <div class="coc-header" onclick="toggleMainCourse(this)">
+            <div class="coc-arrow">▶</div>
+            <span style="font-size:20px">📁</span>
+            <div class="coc-info">
+              <div class="coc-name">PHYS 159 — Physics Lab</div>
+              <div class="coc-meta"><span class="coc-tag">SP25</span><span class="mod-stat-ok" style="font-size:9px;border-radius:3px;padding:1px 6px">✓ All correct</span></div>
+            </div>
+            <div class="coc-progress">
+              <div class="progress-bar"><div class="progress-fill good" style="width:95%"></div></div>
+              <div class="progress-label">95% correct</div>
+            </div>
+          </div>
+          <div class="coc-body">
+            <div style="padding:16px;text-align:center;color:var(--text3);font-size:12px">✓ Almost perfect — 1 wrong variant not yet journaled.</div>
+          </div>
+        </div>
+
+      </div><!-- /panel-courses -->
+
+      <!-- ── STARRED TAB ── -->
+      <div class="panel" id="panel-starred">
+        <div class="panel-header">
+          <div class="panel-title">Starred Questions</div>
+          <div class="panel-sub">8 questions marked for review</div>
+        </div>
+        <div class="starred-list">
+          <div class="starred-card">
+            <div class="sc-icon">⭐</div>
+            <div class="sc-info">
+              <div class="sc-path">CPSC 213 › PQ.1 › PQ.1.2</div>
+              <div class="sc-label">Pointer Dereferencing</div>
+              <div class="sc-meta">Last wrong: Feb 22, 2025</div>
+            </div>
+            <span class="sc-wrong">✗ 2 wrong</span>
+          </div>
+          <div class="starred-card">
+            <div class="sc-icon">⭐</div>
+            <div class="sc-info">
+              <div class="sc-path">CPSC 221 › PQ.1 › PQ.1.1</div>
+              <div class="sc-label">Tree Traversal</div>
+              <div class="sc-meta">Last wrong: Mar 5, 2025</div>
+            </div>
+            <span class="sc-wrong">✗ 5 wrong</span>
+          </div>
+          <div class="starred-card">
+            <div class="sc-icon">⭐</div>
+            <div class="sc-info">
+              <div class="sc-path">CPSC 221 › PQ.2 › PQ.2.1</div>
+              <div class="sc-label">Graph Traversal — BFS vs DFS</div>
+              <div class="sc-meta">Last wrong: Mar 6, 2025</div>
+            </div>
+            <span class="sc-wrong">✗ 5 wrong</span>
+          </div>
+          <div class="starred-card">
+            <div class="sc-icon">⭐</div>
+            <div class="sc-info">
+              <div class="sc-path">PHYS 158 › PQ.1 › PQ.1.1</div>
+              <div class="sc-label">Gaussian Surfaces</div>
+              <div class="sc-meta">Last wrong: Mar 6, 2025</div>
+            </div>
+            <span class="sc-wrong">✗ 8 wrong</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── JOURNAL TAB ── -->
+      <div class="panel" id="panel-journal">
+        <div class="panel-header">
+          <div class="panel-title">Journal Entries</div>
+          <div class="panel-sub">19 entries · sorted by most recent</div>
+        </div>
+        <div class="journal-list">
+          <div class="journal-entry-card" onclick="openJournal(null,'PHYS 158','PQ.1','PQ.1.1','Variant 5','Mar 6, 2025','I chose the wrong Gaussian surface shape. For a cylindrical charge distribution I should use a cylinder, but I used a sphere.','Gauss law, Gaussian surface','Surface choice must MATCH the charge distribution symmetry.')">
+            <div class="jec-path">PHYS 158 › PQ.1 › PQ.1.1 › Variant 5</div>
+            <div class="jec-preview">I chose the wrong Gaussian surface shape. For a cylindrical charge distribution I should use a cylinder...</div>
+            <div class="jec-footer">
+              <div class="jec-date">Mar 6, 2025</div>
+              <div class="jec-tags"><span class="jec-tag">Gauss law</span><span class="jec-tag">symmetry</span></div>
+            </div>
+          </div>
+          <div class="journal-entry-card" onclick="openJournal(null,'CPSC 121','PQ.1','PQ.1.1','Variant 2','Mar 4, 2025','I applied De Morgans law incorrectly. NOT(A AND B) is NOT A OR NOT B, not NOT A AND NOT B.','De Morgan, boolean algebra','NOT(A AND B) = (NOT A) OR (NOT B). Flip AND/OR.')">
+            <div class="jec-path">CPSC 121 › PQ.1 › PQ.1.1 › Variant 2</div>
+            <div class="jec-preview">I applied De Morgan's law incorrectly. NOT(A AND B) is NOT A OR NOT B, not NOT A AND NOT B...</div>
+            <div class="jec-footer">
+              <div class="jec-date">Mar 4, 2025</div>
+              <div class="jec-tags"><span class="jec-tag">De Morgan</span><span class="jec-tag">boolean</span></div>
+            </div>
+          </div>
+          <div class="journal-entry-card" onclick="openJournal(null,'CPSC 221','PQ.1','PQ.1.1','Variant 3','Mar 5, 2025','Post-order traversal on a tree with 3 levels — I printed the root too early.','post-order, recursion','Think: post-order means you process children FIRST.')">
+            <div class="jec-path">CPSC 221 › PQ.1 › PQ.1.1 › Variant 3</div>
+            <div class="jec-preview">Post-order traversal on a tree with 3 levels — I printed the root too early...</div>
+            <div class="jec-footer">
+              <div class="jec-date">Mar 5, 2025</div>
+              <div class="jec-tags"><span class="jec-tag">post-order</span><span class="jec-tag">recursion</span></div>
+            </div>
+          </div>
+          <div class="journal-entry-card" onclick="openJournal(null,'CPSC 213','PQ.1','PQ.1.1','Variant 7','Feb 20, 2025','This time it was a struct with padding. I assumed it was packed but the compiler inserted padding bytes.','struct padding, alignment','Use sizeof() to check actual struct size.')">
+            <div class="jec-path">CPSC 213 › PQ.1 › PQ.1.1 › Variant 7</div>
+            <div class="jec-preview">This time it was a struct with padding. I assumed it was packed but the compiler inserted padding bytes...</div>
+            <div class="jec-footer">
+              <div class="jec-date">Feb 20, 2025</div>
+              <div class="jec-tags"><span class="jec-tag">struct</span><span class="jec-tag">alignment</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content-area -->
+
+    <!-- JOURNAL PANE (rendered inside content-area as split) -->
+  </div><!-- /main-content -->
+</div><!-- /app -->
+
+<!-- ── JOURNAL SIDE PANEL (portal) ── -->
+<div id="journalPanel" style="
+  display:none;
+  position:fixed;
+  top:44px; right:0;
+  width:360px;
+  height:calc(100vh - 44px);
+  background:var(--panel);
+  border-left:1px solid var(--border);
+  padding:20px;
+  overflow-y:auto;
+  z-index:100;
+  animation:fadeSlide 0.2s ease;
+  box-shadow:-4px 0 20px rgba(0,0,0,0.06);
+">
+  <div class="journal-pane-header">
+    <button class="jp-close" onclick="closeJournal()">✕ Close</button>
+    <div class="jp-title" id="jpTitle">Journal Entry</div>
+    <div class="jp-meta" id="jpMeta"></div>
+  </div>
+  <div class="jp-path" id="jpPath"></div>
+  <div class="jp-entry-label">Reflection</div>
+  <div class="jp-entry-body" id="jpBody"></div>
+  <div class="jp-tags" id="jpTags"></div>
+  <div class="jp-notes-label">Quick Note</div>
+  <div class="jp-notes" id="jpNotes"></div>
+</div>
+
+<!-- ── QUICK-WRITE POPUP ── -->
+<div class="qw-popup" id="qwPopup">
+  <div class="qw-header">
+    <div>
+      <div class="qw-title">Wrong Answer Journal</div>
+      <div class="qw-subtitle">Reflect on what went wrong</div>
+    </div>
+    <button class="qw-close" onclick="closeQWPopup()">×</button>
+  </div>
+  <div class="qw-body">
+    <div class="qw-label">Why did you get it wrong?</div>
+    <textarea class="qw-textarea" placeholder="e.g. I forgot to consider the base case in my recursion, which caused an infinite loop..."></textarea>
+  </div>
+  <div class="qw-footer">
+    <button class="qw-btn cancel" onclick="closeQWPopup()">Skip</button>
+    <button class="qw-btn save" onclick="saveQWPopup()">Save Entry</button>
+  </div>
+</div>
+
+<script>
+// ─── SIDEBAR: COURSE TOGGLE ───
+function toggleSidebarCourse(row) {
+  const children = row.nextElementSibling;
+  const arrow = row.querySelector('.tree-arrow');
+  const isOpen = children.classList.contains('open');
+  children.classList.toggle('open');
+  arrow.classList.toggle('open');
+  row.classList.toggle('active');
+  row.querySelector('.folder-icon').textContent = isOpen ? '📁' : '📂';
+}
+
+// ─── SIDEBAR: PQ TOGGLE ───
+function toggleSidebarPQ(row) {
+  const children = row.nextElementSibling;
+  const arrow = row.querySelector('.tree-arrow');
+  children.classList.toggle('open');
+  arrow.classList.toggle('open');
+  row.classList.toggle('active');
+}
+
+// ─── SIDEBAR: QUESTION SELECT ───
+function selectQuestion(row, course, pq, q) {
+  // Highlight in sidebar
+  document.querySelectorAll('.q-sidebar-row').forEach(r => r.classList.remove('active'));
+  row.classList.add('active');
+  // Update breadcrumb
+  setBreadcrumb([course, pq, q]);
+}
+
+// ─── SIDEBAR: STAR TOGGLE ───
+function toggleSidebarStar(e, btn) {
+  e.stopPropagation();
+  btn.classList.toggle('starred');
+  btn.textContent = btn.classList.contains('starred') ? '★' : '☆';
+}
+
+// ─── MAIN: COURSE TOGGLE ───
+function toggleMainCourse(header) {
+  const body = header.nextElementSibling;
+  const arrow = header.querySelector('.coc-arrow');
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open');
+  arrow.classList.toggle('open');
+  header.querySelector('[style*="font-size:20px"]').textContent = isOpen ? '📁' : '📂';
+}
+
+// ─── MAIN: PQ TOGGLE ───
+function toggleMainPQ(row) {
+  const children = row.nextElementSibling;
+  const arrow = row.querySelector('.tree-arrow');
+  children.classList.toggle('open');
+  arrow.classList.toggle('open');
+  row.classList.toggle('active');
+}
+
+// ─── MAIN: QUESTION TOGGLE ───
+function toggleMainQ(row, course, pq, q) {
+  const arrow = row.querySelector('.q-arrow');
+  const isOpen = arrow.classList.contains('open');
+
+  // Find next sibling that is q-detail
+  let detail = row.nextElementSibling;
+  if (!detail || !detail.classList.contains('q-detail')) return;
+
+  arrow.classList.toggle('open');
+  detail.classList.toggle('open');
+  row.classList.toggle('expanded');
+
+  if (!isOpen) setBreadcrumb([course, pq, q]);
+}
+
+// ─── MAIN: STAR TOGGLE ───
+function toggleMainStar(e, btn) {
+  e.stopPropagation();
+  btn.classList.toggle('starred');
+  btn.textContent = btn.classList.contains('starred') ? '★' : '☆';
+}
+
+// ─── JOURNAL OPEN ───
+function openJournal(variantRow, course, pq, q, variant, date, body, tags, notes) {
+  // Deactivate previous
+  document.querySelectorAll('.variant-row.active').forEach(r => r.classList.remove('active'));
+  if (variantRow) variantRow.classList.add('active');
+
+  // Populate panel
+  document.getElementById('jpTitle').textContent = variant + ' — ' + q;
+  document.getElementById('jpMeta').textContent = date;
+
+  // Path chips
+  const pathEl = document.getElementById('jpPath');
+  pathEl.innerHTML = [course, pq, q, variant].map(p =>
+    `<span class="jp-path-chip">${p}</span>`
+  ).join('<span class="jp-path-sep">›</span>');
+
+  document.getElementById('jpBody').textContent = body;
+  document.getElementById('jpNotes').textContent = notes;
+
+  // Tags
+  const tagNames = tags.split(',').map(t => t.trim()).filter(Boolean);
+  document.getElementById('jpTags').innerHTML = tagNames.map(t =>
+    `<span class="jp-tag">${t}</span>`
+  ).join('');
+
+  document.getElementById('journalPanel').style.display = 'block';
+
+  // Shrink main content to make room
+  document.querySelector('.main-content').style.marginRight = '360px';
+  setBreadcrumb([course, pq, q, variant]);
+}
+
+function closeJournal() {
+  document.getElementById('journalPanel').style.display = 'none';
+  document.querySelector('.main-content').style.marginRight = '0';
+  document.querySelectorAll('.variant-row.active').forEach(r => r.classList.remove('active'));
+}
+
+// ─── QUICK-WRITE POPUP ───
+function showQWPopup() {
+  document.getElementById('qwPopup').classList.add('visible');
+}
+function closeQWPopup() {
+  document.getElementById('qwPopup').classList.remove('visible');
+}
+function saveQWPopup() {
+  const ta = document.querySelector('.qw-textarea');
+  if (ta.value.trim()) {
+    ta.value = '';
+    closeQWPopup();
+    // Flash a save confirmation
+    const btn = document.querySelector('.qw-btn.save');
+    btn.textContent = '✓ Saved!';
+    setTimeout(() => btn.textContent = 'Save Entry', 1500);
+  }
+}
+
+// ─── TAB SWITCHING ───
+function switchTab(tab) {
+  document.querySelectorAll('.t-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('visible'));
+  event.target.classList.add('active');
+  document.getElementById('panel-' + tab).classList.add('visible');
+  setBreadcrumb([tab.charAt(0).toUpperCase() + tab.slice(1)]);
+}
+
+// ─── BREADCRUMB ───
+function setBreadcrumb(parts) {
+  const bc = document.getElementById('breadcrumb');
+  bc.innerHTML = parts.map((p, i) => {
+    const cls = i === parts.length - 1 ? 'bc-item active' : 'bc-item';
+    return `<span class="${cls}">${p}</span>`;
+  }).join('<span class="bc-sep"> › </span>');
+}
+
+// ─── SEARCH FILTER ───
+function filterTree(val) {
+  const v = val.toLowerCase();
+  document.querySelectorAll('.tree-q').forEach(node => {
+    const label = node.querySelector('.q-sidebar-label').textContent.toLowerCase();
+    node.style.display = (!v || label.includes(v)) ? '' : 'none';
+  });
+}
+</script>
+</body>
+</html>
