@@ -38,9 +38,17 @@
 
   // Get submission score from badge (0-100) or null if not graded
   function getScore() {
-    const badge = document.querySelector('[data-testid="submission-status"] .badge');
-    if (!badge) return null;
-    return parseInt(badge.innerText.trim());
+    // Target the badge that is currently active (text-bg-info)
+    const badge = document.querySelector('a.badge.text-bg-info');
+    
+    if (!badge) {
+      console.log("No active badge found(the getScore is not working).");
+      return null;
+    }
+  
+    // Use regex to extract just the numbers, ignoring the "%" and "(current)" text
+    const scoreText = badge.innerText.match(/\d+/);
+    return scoreText ? parseInt(scoreText[0]) : null;
   }
 
   // Get question title from the question block header
@@ -48,6 +56,18 @@
     const block = document.querySelector('.question-block');
     const header = block ? block.querySelector('.card-header') : null;
     return header ? header.innerText.trim() : "Unknown Question";
+  }
+
+  function getVariantId() {
+    // Target the active badge link
+    const badgeLink = document.querySelector('a.badge.text-bg-info');
+    
+    if (!badgeLink) return null;
+
+    // Create a URL object to easily parse parameters
+    const url = new URL(badgeLink.href, window.location.origin);
+    return url.searchParams.get('variant_id');
+  
   }
 
   // Check if student got a wrong answer on a practice question
@@ -166,6 +186,11 @@
         isPractice: isPracticeQuestion(),
         isQuestionPage: !!document.querySelector('.question-body')
       });
+    }
+
+    // Side panel asks: give me the current page context
+    if (msg.type === 'GET_CONTEXT') {
+      sendResponse(buildPageContext());
     }
 
     // Side panel asks: give me all the question data

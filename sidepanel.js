@@ -37,21 +37,11 @@ function journalKey(course, module, question, variant) {
   return [course, module, question, variant].filter(Boolean).join('||');
 }
 
-async function upsertEntry(entry) {
+async function insertEntry(entry) {
   const entries = await loadJournals();
-  const idx = entries.findIndex(e => e.key === entry.key);
-  if (idx >= 0) {
-    entries[idx] = { ...entries[idx], ...entry };
-  } else {
-    entries.unshift(entry);
-  }
+  entries.unshift(entry);
   await saveJournals(entries);
-  return entries;
-}
-
-async function getEntry(key) {
-  const entries = await loadJournals();
-  return entries.find(e => e.key === key) || null;
+  console.log('Saved entries:', entries);
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -155,18 +145,9 @@ async function saveEntry() {
     reflection, quickNote,
     screenshot: _screenshot,
     timestamp,
-    wrongAttempts: 1,
-    starred: false,
   };
 
-  // If entry already exists, increment wrongAttempts
-  const existing = await getEntry(key);
-  if (existing) {
-    entry.wrongAttempts = (existing.wrongAttempts || 0) + 1;
-    entry.starred = existing.starred || false;
-  }
-
-  await upsertEntry(entry);
+  await insertEntry(entry);
 
   // Notify background so content script can show in-page confirmation
   chrome.runtime.sendMessage({ type: 'ENTRY_SAVED', payload: entry }).catch(() => {});
@@ -208,6 +189,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       applyContext(result[STORAGE_KEY_CONTEXT]);
     }
   });
+
+  // Actively request fresh context from the active tab's content script
+  chrome.runtime.sendMessage({ type: 'REQUEST_CONTEXT' });
 
   document.getElementById('saveBtn').addEventListener('click', saveEntry);
   

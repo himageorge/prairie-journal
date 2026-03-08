@@ -1,4 +1,3 @@
-;
 // ── background.js ──────────────────────────────────────────────────────────
 // Service worker for PrairieLearn Journal Tracker (Manifest V3)
 // Handles side panel lifecycle and screenshot relay between content <-> panel.
@@ -63,6 +62,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       );
     });
     return true; // keep channel open for async response
+  }
+
+  // ── Side panel asks for fresh context on open
+  if (message.type === 'REQUEST_CONTEXT') {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (!tabs[0]) return;
+      chrome.tabs.sendMessage(tabs[0].id, { type: 'GET_CONTEXT' }, (ctx) => {
+        if (chrome.runtime.lastError || !ctx) return;
+        chrome.runtime.sendMessage({ type: 'UPDATE_CONTEXT', payload: ctx }).catch(() => {});
+      });
+    });
+    return true;
   }
 
   // ── Page context: content script reports current question metadata
