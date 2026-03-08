@@ -88,17 +88,32 @@
   function getReadableText(element) {
     if (!element) return "";
     const clone = element.cloneNode(true);
+    
+    // MathJax — already have this ✓
     clone.querySelectorAll('mjx-container').forEach(mjx => {
       const speech = mjx.getAttribute('data-semantic-speech-none') ||
-                     mjx.getAttribute('data-semantic-speech') || "";
+        mjx.getAttribute('data-semantic-speech') || "";
       mjx.replaceWith(document.createTextNode(speech));
     });
+  
+    // Images (BST diagrams, etc.)
+    clone.querySelectorAll('img').forEach(img => {
+      img.replaceWith(document.createTextNode('[image]'));
+    });
+  
+    // Code blocks
+    clone.querySelectorAll('code').forEach(code => {
+      const wrapped = document.createTextNode(`\`${code.innerText}\``);
+      code.replaceWith(wrapped);
+    });
+  
     return clone.innerText.trim();
   }
 
   // ========================================================================
   // EXTRACT FULL QUESTION DATA (called by side panel)
   // ========================================================================
+  
 
   function extractQuestionData() {
     const questionBody = document.querySelector('.question-body');
@@ -121,20 +136,19 @@
     }
 
     // Correct answer from grading block
-    const answerBody = document.querySelector('.grading-block .answer-body');
-    const correctAnswer = getReadableText(answerBody);
+    const correctAnswer = getReadableText(document.querySelector('.grading-block .answer-body'));
+
 
     // Submitted (wrong) answer
     const submissionBody = document.querySelector('.submission-body');
-    const myAnswerText = submissionBody ? submissionBody.innerText.trim() : "";
-    const letterMatch = myAnswerText.match(/\(([a-e])\)/);
-    const myAnswer = letterMatch ? letterMatch[1] : myAnswerText;
+    const myAnswerText = getReadableText(submissionBody);
+    
+  
 
     return {
       questionTitle: getQuestionTitle(),
       questionText,
       options,
-      myAnswer,
       myAnswerText,
       correctAnswer,
       course: getCourse(),

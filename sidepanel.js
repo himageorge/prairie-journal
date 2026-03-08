@@ -130,6 +130,7 @@ async function saveEntry() {
   const reflection = document.getElementById('inputReflection').value.trim();
   const quickNote  = document.getElementById('inputNote').value.trim();
 
+
   if (!reflection) {
     showToast('⚠️ Please write a reflection first.');
     document.getElementById('inputReflection').focus();
@@ -140,11 +141,25 @@ async function saveEntry() {
   const key = journalKey(course, module, question, variant);
   const timestamp = new Date().toLocaleString();
 
+  // Fetch answer data from the content script
+  let questionData = {};
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id) {
+      questionData = await chrome.tabs.sendMessage(tab.id, { type: 'EXTRACT_QUESTION' });
+    }
+  } catch (e) {
+    console.warn('Could not extract question data:', e);
+  }
+
   const entry = {
     key, course, module, question, variant,
     reflection, quickNote,
     screenshot: _screenshot,
     timestamp,
+    questionData: questionData.questionText     || null,
+    myAnswerText:     questionData.myAnswerText     || null,
+    correctAnswer: questionData.correctAnswer || null,
   };
 
   await insertEntry(entry);
