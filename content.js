@@ -94,29 +94,37 @@
   // ========================================================================
 
   // Returns readable text from an element, converting MathJax SVGs
-  // to their speech-text equivalent
+  // to their speech-text equivalent, preserving code block formatting.
   function getReadableText(element) {
     if (!element) return "";
     const clone = element.cloneNode(true);
-    
-    // MathJax — already have this ✓
+
+    // MathJax
     clone.querySelectorAll('mjx-container').forEach(mjx => {
       const speech = mjx.getAttribute('data-semantic-speech-none') ||
         mjx.getAttribute('data-semantic-speech') || "";
       mjx.replaceWith(document.createTextNode(speech));
     });
-  
-    // Images (BST diagrams, etc.)
-    clone.querySelectorAll('img').forEach(img => {
-      img.replaceWith(document.createTextNode('[image]'));
+
+    // Multi-line code blocks (<pre> or <pre><code>) — triple backticks
+    // Must run before inline code to avoid double-wrapping
+    clone.querySelectorAll('pre').forEach(pre => {
+      const codeEl = pre.querySelector('code');
+      const text = (codeEl || pre).innerText.trimEnd();
+      pre.replaceWith(document.createTextNode(`\n\`\`\`\n${text}\n\`\`\`\n`));
     });
-  
-    // Code blocks
+
+    // Inline code
     clone.querySelectorAll('code').forEach(code => {
-      const wrapped = document.createTextNode(`\`${code.innerText}\``);
-      code.replaceWith(wrapped);
+      code.replaceWith(document.createTextNode(`\`${code.innerText}\``));
     });
-  
+
+    // Images — include alt text if available
+    clone.querySelectorAll('img').forEach(img => {
+      const label = img.alt ? `[image: ${img.alt}]` : '[image]';
+      img.replaceWith(document.createTextNode(label));
+    });
+
     return clone.innerText.trim();
   }
 
@@ -213,33 +221,37 @@
         isPractice: isPracticeQuestion(),
         isQuestionPage: !!document.querySelector('.question-body')
       });
+      return false;
     }
 
     // Side panel asks: give me the current page context
     if (msg.type === 'GET_CONTEXT') {
       sendResponse(buildPageContext());
+      return false;
     }
 
     // Side panel asks: give me all the question data
     if (msg.type === 'EXTRACT_QUESTION' || msg.action === 'extractQuestion') {
       sendResponse(extractQuestionData());
+      return false;
     }
-
-    if (msg.action !== "togglePanel") return;
-
-    if (!document.querySelector('.question-body')) {
-      showTeaseMessage();
-      return;
-    }
-
-    chrome.runtime.sendMessage({ type: 'OPEN_SIDE_PANEL' });
 
     // Background confirms an entry was saved — show toast
     if (msg.type === 'ENTRY_SAVED_ACK') {
       showPageToast('📓 Journal entry saved!');
+      return false;
     }
 
-    return true; // keep channel open for async responses
+    // Extension icon clicked — open side panel
+    if (msg.action === 'togglePanel') {
+      if (!document.querySelector('.question-body')) {
+        showTeaseMessage();
+      } else {
+        chrome.runtime.sendMessage({ type: 'OPEN_SIDE_PANEL' });
+      }
+    }
+
+    return false;
   });
 
   // ========================================================================

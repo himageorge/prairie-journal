@@ -7,6 +7,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;1,9..144,300&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="dashboard.css">
+<script>
+  window.MathJax = {
+    tex: { inlineMath: [['$','$'], ['\\(','\\)']] },
+    options: { skipHtmlTags: ['script','noscript','style','textarea','pre'] }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" defer></script>
 </head>
 <body>
 
@@ -94,16 +101,24 @@
   display:none;
   position:fixed;
   top:44px; right:0;
-  width:450px;
+  width:450px; min-width:320px; max-width:80vw;
   height:calc(100vh - 44px);
   background:var(--panel);
   border-left:1px solid var(--border);
-  padding:20px;
+  padding:20px 20px 20px 26px;
   overflow-y:auto;
   z-index:100;
   animation:fadeSlide 0.2s ease;
   box-shadow:-4px 0 20px rgba(0,0,0,0.06);
 ">
+  <!-- Drag handle on left edge -->
+  <div id="jpDragHandle" style="
+    position:absolute; top:0; left:0;
+    width:6px; height:100%;
+    cursor:col-resize; z-index:101;
+    background:transparent;
+    transition:background 0.15s;
+  "></div>
   <div class="journal-pane-header">
     <button class="jp-close" id="jpClose">✕ Close</button>
     <div class="jp-title" id="jpTitle">Journal Entry</div>
@@ -114,13 +129,10 @@
   <div class="jp-entry-label">Reflection</div>
   <div class="jp-entry-body" id="jpBody"></div>
 
-  <div id="jpQuestionData" style="display:none">
-    <div class="jp-entry-label" style="margin-top:10px">Question</div>
-    <div class="jp-notes" id="jpQuestionText" style="margin-bottom:10px;border-left:3px solid var(--gold)"></div>
-    <div class="jp-entry-label">My Answer</div>
-    <div class="jp-notes" id="jpMyAnswer" style="margin-bottom:10px;border-left:3px solid var(--red)"></div>
-    <div class="jp-entry-label">Correct Answer</div>
-    <div class="jp-notes" id="jpCorrectAnswer" style="margin-bottom:10px;border-left:3px solid var(--accent)"></div>
+  <div id="jpVariantLink" style="display:none; margin-bottom:14px;">
+    <a id="jpVariantAnchor" href="#" target="_blank" class="jp-variant-link">
+      View variant on PrairieLearn →
+    </a>
   </div>
 
   <div id="jpAiSection" style="display:none">
@@ -132,12 +144,49 @@
   <div class="jp-notes-label">Quick Note</div>
   <div class="jp-notes" id="jpNotes"></div>
 
-  <div id="jpScreenshotWrap" style="margin-top:14px;display:none">
-    <div class="jp-entry-label">Screenshot</div>
-    <img id="jpScreenshot" style="width:100%;border-radius:6px;border:1px solid var(--border)" src="" alt="">
+</div>
+
+<!-- ── FLASHCARD MODAL ── -->
+<div id="flashcardModal" class="fc-overlay" style="display:none">
+  <div class="fc-modal">
+    <div class="fc-modal-header">
+      <div>
+        <div class="fc-modal-title">Flashcards: <span id="fcCourseName"></span></div>
+        <div class="fc-modal-sub" id="fcSub"></div>
+      </div>
+      <button class="fc-close-btn" id="fcClose">✕ Close</button>
+    </div>
+
+    <div id="fcLoading" class="fc-loading" style="display:none">
+      <div class="fc-spinner"></div>
+      <div>Generating flashcards with AI...</div>
+    </div>
+
+    <div id="fcError" class="fc-error-box" style="display:none"></div>
+
+    <div id="fcViewer" style="display:none">
+      <div class="fc-card-wrap">
+        <div class="fc-card" id="fcCard">
+          <div class="fc-card-inner">
+            <div class="fc-card-front"><div class="fc-card-content" id="fcFront"></div></div>
+            <div class="fc-card-back"><div class="fc-card-content" id="fcBack"></div></div>
+          </div>
+        </div>
+        <div class="fc-hint" id="fcHint">Click card to reveal answer</div>
+      </div>
+      <div class="fc-nav">
+        <button class="fc-nav-btn" id="fcPrev">← Prev</button>
+        <span class="fc-counter" id="fcCounter">1 / 1</span>
+        <button class="fc-nav-btn" id="fcNext">Next →</button>
+      </div>
+<div class="fc-footer">
+        <button class="fc-anki-btn" id="fcExport">Export to Anki (.txt)</button>
+        <div class="fc-anki-hint">Import in Anki: File → Import → select the .txt file</div>
+      </div>
+    </div>
   </div>
 </div>
 
-<script src="dashboard.js"></script>
+<script type="module" src="dashboard.js"></script>
 </body>
 </html>

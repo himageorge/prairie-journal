@@ -1,8 +1,15 @@
 'use strict';
+import { CONFIG } from './config.js';
 
 const STORAGE_KEY = 'pl_journals';
 let _allEntries = [];
 let _grouped    = {};
+
+// Flashcard state
+let _fcCards   = [];
+let _fcIndex   = 0;
+let _fcCourse  = '';
+let _fcFlipped = false;
 
 // ─── UTILITIES ───
 function escHtml(str) {
@@ -10,6 +17,58 @@ function escHtml(str) {
   return String(str)
     .replace(/&/g,'&amp;').replace(/</g,'&lt;')
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ─── MARKDOWN RENDERER ───
+function markdownToHtml(text) {
+  if (!text) return '';
+  const segments = text.split(/(```[\s\S]*?```)/g);
+  return segments.map((seg, i) => {
+    if (i % 2 === 1) {
+      const code = seg.replace(/^```[^\n]*\n?/, '').replace(/\n?```$/, '');
+      return `<pre><code>${escHtml(code)}</code></pre>`;
+    }
+    return renderMdLines(seg);
+  }).join('');
+}
+
+function renderMdLines(text) {
+  const lines = text.split('\n');
+  const out = [];
+  let inOl = false, inUl = false;
+
+  const flush = () => {
+    if (inOl) { out.push('</ol>'); inOl = false; }
+    if (inUl) { out.push('</ul>'); inUl = false; }
+  };
+  const inline = s => {
+    let t = escHtml(s);
+    t = t.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    t = t.replace(/\*(.+?)\*/g,     '<em>$1</em>');
+    t = t.replace(/`([^`]+)`/g,     '<code>$1</code>');
+    return t;
+  };
+
+  for (const raw of lines) {
+    const line = raw.trimEnd();
+    const ol = line.match(/^(\d+)\.\s+(.*)/);
+    const ul = line.match(/^[-*]\s+(.*)/);
+    if (ol) {
+      if (inUl) { out.push('</ul>'); inUl = false; }
+      if (!inOl) { out.push('<ol>'); inOl = true; }
+      out.push(`<li>${inline(ol[2])}</li>`);
+    } else if (ul) {
+      if (inOl) { out.push('</ol>'); inOl = false; }
+      if (!inUl) { out.push('<ul>'); inUl = true; }
+      out.push(`<li>${inline(ul[1])}</li>`);
+    } else if (line === '') {
+      flush(); out.push('<br>');
+    } else {
+      flush(); out.push(`<p>${inline(line)}</p>`);
+    }
+  }
+  flush();
+  return out.join('');
 }
 
 function formatDate(ts) {
@@ -100,6 +159,12 @@ function buildCourseCard(course, modules, totalWrong) {
       </div>
       <div class="module-children">${questionsHtml}</div>`;
   }
+
+  // Count questions that are serious struggles (3+ attempts)
+  const struggleCount = Object.values(modules)
+    .flatMap(qs => Object.values(qs))
+    .filter(entries => entries.length >= 3).length;
+
   return `
   <div class="course-overview-card">
     <div class="coc-header" data-action="toggleCourse">
@@ -108,8 +173,12 @@ function buildCourseCard(course, modules, totalWrong) {
         <div class="coc-name">${escHtml(course)}</div>
         <div class="coc-meta">
           <span class="coc-wrong">✗ ${totalWrong} wrong</span>
+          ${struggleCount > 0 ? `<span class="coc-struggle">${struggleCount} struggle topic${struggleCount !== 1 ? 's' : ''}</span>` : ''}
         </div>
       </div>
+      <button class="fc-gen-btn" data-action="generateFlashcards" data-course="${escHtml(course)}" title="Generate AI flashcards for your struggle topics">
+        ⚡ Flashcards
+      </button>
     </div>
     <div class="coc-body">
       <div class="module-table">${modulesHtml}</div>
@@ -245,35 +314,25 @@ function openJournalEntry(triggerEl, idx) {
     .map(p => `<span class="jp-path-chip">${escHtml(p)}</span>`)
     .join('<span class="jp-path-sep">›</span>');
 
-  document.getElementById('jpBody').textContent  = entry.reflection || '';
-  document.getElementById('jpNotes').textContent = entry.quickNote  || '';
-  document.getElementById('jpTags').innerHTML    = '';
+  document.getElementById('jpBody').innerHTML  = markdownToHtml(entry.reflection) || '';
+  document.getElementById('jpNotes').innerHTML = markdownToHtml(entry.quickNote)  || '';
+  document.getElementById('jpTags').innerHTML  = '';
 
-  const qdSection = document.getElementById('jpQuestionData');
-  if (entry.questionText || entry.myAnswerText || entry.correctAnswer) {
-    qdSection.style.display = 'block';
-    document.getElementById('jpQuestionText').textContent  = entry.questionText  || '—';
-    document.getElementById('jpMyAnswer').textContent      = entry.myAnswerText  || '—';
-    document.getElementById('jpCorrectAnswer').textContent = entry.correctAnswer || '—';
+  const linkWrap   = document.getElementById('jpVariantLink');
+  const linkAnchor = document.getElementById('jpVariantAnchor');
+  if (entry.url) {
+    linkAnchor.href = entry.url;
+    linkWrap.style.display = 'block';
   } else {
-    qdSection.style.display = 'none';
+    linkWrap.style.display = 'none';
   }
 
   const aiSection = document.getElementById('jpAiSection');
   if (entry.aiFeedback) {
     aiSection.style.display = 'block';
-    document.getElementById('jpAiFeedback').textContent = entry.aiFeedback;
+    document.getElementById('jpAiFeedback').innerHTML = markdownToHtml(entry.aiFeedback);
   } else {
     aiSection.style.display = 'none';
-  }
-
-  const ssWrap = document.getElementById('jpScreenshotWrap');
-  const ssEl   = document.getElementById('jpScreenshot');
-  if (entry.screenshot) {
-    ssEl.src = entry.screenshot;
-    ssWrap.style.display = 'block';
-  } else {
-    ssWrap.style.display = 'none';
   }
 
   document.getElementById('journalPanel').style.display = 'block';
@@ -288,24 +347,26 @@ function closeJournal() {
 }
 
 // ─── STAR ───
-function toggleStar(idx) {
+function toggleStar(idx, btnEl) {
   const entry = _allEntries[idx];
   if (!entry) return;
   entry.starred = !entry.starred;
-  chrome.storage.local.set({ [STORAGE_KEY]: _allEntries }, () => {
-    loadAndRender();
-  });
+
+  if (btnEl) btnEl.classList.toggle('starred', entry.starred);
+
+  const starredCount = _allEntries.filter(e => e.starred).length;
+  const statEl = document.getElementById('stat-starred');
+  if (statEl) statEl.textContent = starredCount;
+
+  chrome.storage.local.set({ [STORAGE_KEY]: _allEntries });
 }
 
 // ─── TOGGLE HELPERS ───
 function toggleCourse(header) {
-  const body   = header.nextElementSibling;
-  const arrow  = header.querySelector('.coc-arrow');
-  const isOpen = body.classList.contains('open');
+  const body  = header.nextElementSibling;
+  const arrow = header.querySelector('.coc-arrow');
   body.classList.toggle('open');
   arrow.classList.toggle('open');
-  const icon = header.querySelector('.coc-folder-icon');
-  if (icon) icon.textContent = isOpen ? '📁' : '📂';
 }
 
 function togglePQ(row) {
@@ -316,7 +377,6 @@ function togglePQ(row) {
 
 function toggleQ(row) {
   const arrow  = row.querySelector('.q-arrow');
-  const isOpen = arrow.classList.contains('open');
   const detail = row.nextElementSibling;
   if (!detail || !detail.classList.contains('q-detail')) return;
   arrow.classList.toggle('open');
@@ -334,6 +394,187 @@ function setBreadcrumb(parts) {
   }).join('<span class="bc-sep"> › </span>');
 }
 
+// ═══════════════════════════════════════════════════════
+// ─── FLASHCARD GENERATION ───
+// ═══════════════════════════════════════════════════════
+
+async function generateFlashcardsForCourse(course) {
+  const modules = _grouped[course];
+  if (!modules) return;
+
+  // Collect struggle topics with context
+  const topics = [];
+  for (const [mod, questions] of Object.entries(modules)) {
+    for (const [q, entries] of Object.entries(questions)) {
+      const count = entries.length;
+      // Grab up to 2 short reflections/notes as context
+      const notes = entries
+        .map(e => (e.quickNote || e.reflection || '').substring(0, 120).trim())
+        .filter(Boolean)
+        .slice(0, 2);
+      topics.push({ module: mod, question: q, attempts: count, notes });
+    }
+  }
+
+  // Sort by most attempts first (hardest struggles at the top)
+  topics.sort((a, b) => b.attempts - a.attempts);
+
+  const topicsStr = topics.map(t => {
+    const noteStr = t.notes.length ? `\n   Student note: "${t.notes[0]}"` : '';
+    return `- [${t.module}] "${t.question}" — ${t.attempts} wrong attempt${t.attempts !== 1 ? 's' : ''}${noteStr}`;
+  }).join('\n');
+
+  const prompt = `You are creating study flashcards for a university student in the course "${course}".
+
+TOPICS THE STUDENT IS STRUGGLING WITH (sorted by most attempts):
+${topicsStr}
+
+Generate 8–12 concise flashcards covering the core concepts behind these struggle topics.
+
+FLASHCARD RULES:
+- Focus on underlying concepts, not just the specific questions listed
+- Progress from foundational to more complex
+- Use proper LaTeX notation for all math (e.g. $T(n) = 2T(n/2) + n$, $O(\\log n)$, $\\Theta(n^2)$)
+- Include short backtick code examples where helpful
+- If you naturally reference an external resource in an answer (e.g. "See CLRS Ch. 6" or "Refer to MIT 6.006 Lecture 4"), that is fine — but do not force resource mentions
+- Keep fronts as clear, answerable questions; backs as complete but concise answers
+
+Return ONLY a JSON array with this exact format — no other text before or after:
+[
+  { "front": "Question text", "back": "Answer text" }
+]`;
+
+  // Show loading state
+  openFlashcardModal(course, null, true);
+
+  try {
+    const response = await fetch(CONFIG.API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': CONFIG.CLAUDE_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-opus-4-6',
+        max_tokens: 3000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    const data = await response.json();
+    const text = data.content?.[0]?.text || '';
+
+    // Extract JSON array from response
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) throw new Error('Unexpected response format from AI');
+    const cards = JSON.parse(jsonMatch[0]);
+
+    if (!Array.isArray(cards) || cards.length === 0) throw new Error('No flashcards were generated');
+
+    openFlashcardModal(course, cards, false);
+  } catch (err) {
+    setFlashcardError('Generation failed: ' + err.message);
+  }
+}
+
+// ─── FLASHCARD MODAL ───
+
+function openFlashcardModal(course, cards, loading) {
+  _fcCourse  = course;
+  _fcCards   = cards || [];
+  _fcIndex   = 0;
+  _fcFlipped = false;
+
+  document.getElementById('fcCourseName').textContent = course;
+  document.getElementById('flashcardModal').style.display = 'flex';
+
+  const loadEl = document.getElementById('fcLoading');
+  const viewEl = document.getElementById('fcViewer');
+  const errEl  = document.getElementById('fcError');
+
+  if (loading) {
+    loadEl.style.display = 'block';
+    viewEl.style.display = 'none';
+    errEl.style.display  = 'none';
+    document.getElementById('fcSub').textContent = 'Generating flashcards with AI...';
+    return;
+  }
+
+  loadEl.style.display = 'none';
+  errEl.style.display  = 'none';
+  viewEl.style.display = 'block';
+  document.getElementById('fcSub').textContent = `${cards.length} card${cards.length !== 1 ? 's' : ''} generated`;
+
+  renderFlashcard();
+}
+
+function setFlashcardError(msg) {
+  document.getElementById('fcLoading').style.display = 'none';
+  document.getElementById('fcViewer').style.display  = 'none';
+  const errEl = document.getElementById('fcError');
+  errEl.style.display   = 'block';
+  errEl.textContent     = msg;
+  document.getElementById('fcSub').textContent = 'Error';
+}
+
+function closeFlashcardModal() {
+  document.getElementById('flashcardModal').style.display = 'none';
+}
+
+function renderFlashcard() {
+  const card = _fcCards[_fcIndex];
+  if (!card) return;
+
+  _fcFlipped = false;
+  const cardEl = document.getElementById('fcCard');
+  cardEl.classList.remove('flipped');
+
+  document.getElementById('fcFront').innerHTML = markdownToHtml(card.front);
+  document.getElementById('fcBack').innerHTML  = markdownToHtml(card.back);
+  document.getElementById('fcCounter').textContent = `${_fcIndex + 1} / ${_fcCards.length}`;
+  document.getElementById('fcHint').textContent = 'Click card to reveal answer';
+
+  document.getElementById('fcPrev').disabled = (_fcIndex === 0);
+  document.getElementById('fcNext').disabled = (_fcIndex === _fcCards.length - 1);
+
+  // Re-typeset MathJax after DOM update — use setTimeout to ensure innerHTML has settled
+  if (window.MathJax?.typesetPromise) {
+    // Clear previous typesetting on these nodes first so MathJax re-processes them
+    window.MathJax.typesetClear([document.getElementById('fcFront'), document.getElementById('fcBack')]);
+    setTimeout(() => {
+      window.MathJax.typesetPromise([document.getElementById('fcFront'), document.getElementById('fcBack')]);
+    }, 0);
+  }
+}
+
+function flipCard() {
+  _fcFlipped = !_fcFlipped;
+  document.getElementById('fcCard').classList.toggle('flipped', _fcFlipped);
+  document.getElementById('fcHint').textContent = _fcFlipped ? 'Click to see question' : 'Click card to reveal answer';
+}
+
+function exportToAnki() {
+  if (!_fcCards.length) return;
+  const tag   = _fcCourse.replace(/[\s/\\]/g, '_');
+  const lines = ['#separator:tab', '#html:true', '#tags column:3'];
+  for (const c of _fcCards) {
+    const front = c.front.replace(/\t/g, ' ').replace(/\n/g, '<br>');
+    const back  = c.back.replace(/\t/g, ' ').replace(/\n/g, '<br>');
+    lines.push(`${front}\t${back}\t${tag}`);
+  }
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `${tag}_flashcards.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 // ─── INIT ───
 document.addEventListener('DOMContentLoaded', () => {
   loadAndRender();
@@ -345,7 +586,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Reload when this tab regains focus (catches any missed storage events)
+  // Reload when this tab regains focus
   window.addEventListener('focus', loadAndRender);
 
   // ── TAB SWITCHING ──
@@ -369,18 +610,86 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── CLOSE JOURNAL ──
   document.getElementById('jpClose').addEventListener('click', closeJournal);
 
+  // Close journal when clicking outside the panel
+  document.addEventListener('click', e => {
+    const panel = document.getElementById('journalPanel');
+    if (panel.style.display === 'none') return;
+    if (!panel.contains(e.target)) closeJournal();
+  });
+
+  // ── DRAG HANDLE — resize the journal panel ──
+  const jpPanel  = document.getElementById('journalPanel');
+  const jpHandle = document.getElementById('jpDragHandle');
+
+  jpHandle.addEventListener('mouseover', () => { jpHandle.style.background = 'rgba(74,124,89,0.25)'; });
+  jpHandle.addEventListener('mouseout',  () => { jpHandle.style.background = 'transparent'; });
+
+  jpHandle.addEventListener('mousedown', e => {
+    e.preventDefault();
+    const startX     = e.clientX;
+    const startWidth = jpPanel.offsetWidth;
+
+    function onMove(e) {
+      const newWidth = Math.max(320, Math.min(window.innerWidth * 0.8, startWidth + (startX - e.clientX)));
+      jpPanel.style.width = newWidth + 'px';
+      document.querySelector('.main-content').style.marginRight = newWidth + 'px';
+    }
+    function onUp() {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      jpHandle.style.background = 'transparent';
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+
+  // ── FLASHCARD MODAL CONTROLS ──
+  document.getElementById('fcClose').addEventListener('click', closeFlashcardModal);
+
+  document.getElementById('fcCard').addEventListener('click', flipCard);
+
+  document.getElementById('fcPrev').addEventListener('click', () => {
+    if (_fcIndex > 0) { _fcIndex--; renderFlashcard(); }
+  });
+  document.getElementById('fcNext').addEventListener('click', () => {
+    if (_fcIndex < _fcCards.length - 1) { _fcIndex++; renderFlashcard(); }
+  });
+  document.getElementById('fcExport').addEventListener('click', exportToAnki);
+
+  // Close flashcard modal on overlay click
+  document.getElementById('flashcardModal').addEventListener('click', e => {
+    if (e.target === document.getElementById('flashcardModal')) closeFlashcardModal();
+  });
+
+  // Keyboard navigation for flashcards
+  document.addEventListener('keydown', e => {
+    const modal = document.getElementById('flashcardModal');
+    if (modal.style.display === 'none') return;
+    if (e.key === 'ArrowRight' && _fcIndex < _fcCards.length - 1) { _fcIndex++; renderFlashcard(); }
+    if (e.key === 'ArrowLeft'  && _fcIndex > 0)                    { _fcIndex--; renderFlashcard(); }
+    if (e.key === ' ' || e.key === 'Enter')                        { e.preventDefault(); flipCard(); }
+    if (e.key === 'Escape')                                        { closeFlashcardModal(); }
+  });
+
   // ── EVENT DELEGATION for dynamically rendered content ──
   document.getElementById('contentArea').addEventListener('click', e => {
     const el = e.target.closest('[data-action]');
     if (!el) return;
     const action = el.dataset.action;
-    if (action === 'toggleCourse')     toggleCourse(el);
-    else if (action === 'togglePQ')    togglePQ(el);
-    else if (action === 'toggleQ')     toggleQ(el);
+    if (action === 'toggleCourse')       toggleCourse(el);
+    else if (action === 'togglePQ')      togglePQ(el);
+    else if (action === 'toggleQ')       toggleQ(el);
     else if (action === 'starEntry') {
       e.stopPropagation();
-      toggleStar(parseInt(el.dataset.idx, 10));
+      toggleStar(parseInt(el.dataset.idx, 10), el);
     }
-    else if (action === 'openEntry')   openJournalEntry(el, parseInt(el.dataset.idx, 10));
+    else if (action === 'openEntry') {
+      e.stopPropagation();
+      openJournalEntry(el, parseInt(el.dataset.idx, 10));
+    }
+    else if (action === 'generateFlashcards') {
+      e.stopPropagation();
+      generateFlashcardsForCourse(el.dataset.course);
+    }
   });
 });

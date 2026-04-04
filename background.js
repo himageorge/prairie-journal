@@ -7,6 +7,12 @@
 // ---------------------------------------------------------------------------
 chrome.action.onClicked.addListener((tab) => {
   chrome.tabs.sendMessage(tab.id, { action: "togglePanel" });
+  // Capture while activeTab permission is fresh
+  chrome.tabs.captureVisibleTab(tab.windowId, { format: 'jpeg', quality: 82 }, dataUrl => {
+    if (!chrome.runtime.lastError && dataUrl) {
+      chrome.storage.local.set({ pl_temp_screenshot: dataUrl });
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -37,31 +43,20 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 // ---------------------------------------------------------------------------
 // 3. Message router — relay messages between content script and side panel
 // ---------------------------------------------------------------------------
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender) => {
   if (message.type === 'OPEN_SIDE_PANEL') {
-    chrome.sidePanel.open({ tabId: sender.tab.id });
-    return false;
-  }
-
-  // ── Screenshot request: side panel asks content script to grab a screenshot
-  if (message.type === 'REQUEST_SCREENSHOT') {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (!tabs[0]) { sendResponse({ error: 'No active tab' }); return; }
-
-      // Capture the visible area of the active tab
-      chrome.tabs.captureVisibleTab(
-        tabs[0].windowId,
-        { format: 'png', quality: 90 },
-        (dataUrl) => {
-          if (chrome.runtime.lastError) {
-            sendResponse({ error: chrome.runtime.lastError.message });
-          } else {
-            sendResponse({ dataUrl });
-          }
+    const tabId    = sender.tab?.id;
+    const windowId = sender.tab?.windowId;
+    if (tabId) {
+      chrome.sidePanel.open({ tabId });
+      // Capture screenshot now while activeTab is fresh — store for side panel to pick up
+      chrome.tabs.captureVisibleTab(windowId, { format: 'jpeg', quality: 82 }, dataUrl => {
+        if (!chrome.runtime.lastError && dataUrl) {
+          chrome.storage.local.set({ pl_temp_screenshot: dataUrl });
         }
-      );
-    });
-    return true; // keep channel open for async response
+      });
+    }
+    return false;
   }
 
   // ── Side panel asks for fresh context on open
@@ -73,7 +68,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         chrome.runtime.sendMessage({ type: 'UPDATE_CONTEXT', payload: ctx }).catch(() => {});
       });
     });
-    return true;
+    return false; // no sendResponse needed — we broadcast via sendMessage instead
   }
 
   // ── Page context: content script reports current question metadata

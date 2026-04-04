@@ -1,36 +1,67 @@
 import { CONFIG } from './config.js';
 
+const SYSTEM_PROMPT = `You are a Socratic teaching assistant for a university STEM course.
+Your job is to help students understand their mistakes WITHOUT giving away the answer.
+Ask guiding questions that lead the student to discover the correct reasoning themselves.
+
+FORMATTING RULES:
+- You may use basic markdown: bold (**text**), numbered lists, bullet lists.
+- Do NOT use LaTeX or dollar signs for math. Write math in plain English (e.g., "N of h equals 1 plus N of h minus 1").
+- Keep your response concise and conversational.
+- If a screenshot of the question is provided, use it to better understand the problem context.`;
+
 /**
- * PERSON 3: Fetch Socratic Explanation
- * Triggered when Person 1's "Explain" button is clicked.
+ * Fetch Socratic Explanation using the Claude API.
  */
 export async function getSocraticExplanation(questionData) {
-    const prompt = `
-        You are a Socratic TA. Use the contextual information below to perform your task.
-        Course: ${questionData.course}
-        Topic: ${questionData.questionTitle}
-        Question: ${questionData.questionText}
-        Student Answer: ${questionData.myAnswer}
-        Correct Answer: ${questionData.correctAnswer}
-        Student Logic: "${questionData.myReasoning}"
+    const textBlock = {
+        type: 'text',
+        text: `Course: ${questionData.course}
+Topic: ${questionData.questionTitle}
+Question: ${questionData.questionText}
+Student Answer: ${questionData.myAnswer}
+Correct Answer: ${questionData.correctAnswer}
+Student Logic: "${questionData.myReasoning}"
 
-        Task: Understand and analyze the question, the student answer, the current answer, and the student logic to identi
-        fy gaps in understanding.  
-        Keep it under 100 words.
-    `;
+Identify the gaps in the student's understanding and explain how to find the correct answer using the Socratic method.`
+    };
+
+    // Build content array — prepend screenshot image block if provided
+    let content;
+    if (questionData.screenshot) {
+        const base64Data = questionData.screenshot.split(',')[1];
+        const mediaType = questionData.screenshot.startsWith('data:image/jpeg') ? 'image/jpeg' : 'image/png';
+        content = [
+            {
+                type: 'image',
+                source: { type: 'base64', media_type: mediaType, data: base64Data }
+            },
+            textBlock
+        ];
+    } else {
+        content = textBlock.text;
+    }
 
     try {
-        const response = await fetch(`${CONFIG.API_URL}?key=${CONFIG.GEMINI_API_KEY}`, {
+        const response = await fetch(CONFIG.API_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': CONFIG.CLAUDE_API_KEY,
+                'anthropic-version': '2023-06-01',
+                'anthropic-dangerous-direct-browser-access': 'true'
+            },
             body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }]
-    })
-});
-        
+                model: 'claude-opus-4-6',
+                max_tokens: 1024,
+                system: SYSTEM_PROMPT,
+                messages: [{ role: 'user', content }]
+            })
+        });
+
         const data = await response.json();
-        console.log("Gemini API Full Response:", data); 
-        const feedback = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        console.log("Claude API Full Response:", data);
+        const feedback = data.content?.[0]?.text;
         return feedback || "The TA is pondering... try rephrasing your reflection.";
     } catch (error) {
         console.error("AI Error:", error);
@@ -39,16 +70,25 @@ export async function getSocraticExplanation(questionData) {
 }
 
 /**
- * PERSON 3: Chat Logic
- * Maintains a small conversation history for follow-up questions.
+ * Chat Logic — maintains conversation history for follow-up questions.
+ * history format: [{role: "user", content: "..."}, {role: "assistant", content: "..."}]
  */
 export async function sendChatMessage(history, newUserMessage) {
-    // history format: [{role: "user", parts: [{text: "..."}]}, {role: "model", parts: [...]}]
-    const response = await fetch(`${CONFIG.API_URL}?key=${CONFIG.GEMINI_API_KEY}`, {
+    const response = await fetch(CONFIG.API_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [...history, { role: "user", parts: [{ text: newUserMessage }] }] })
+        headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': CONFIG.CLAUDE_API_KEY,
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+            model: 'claude-opus-4-6',
+            max_tokens: 1024,
+            system: SYSTEM_PROMPT,
+            messages: [...history, { role: 'user', content: newUserMessage }]
+        })
     });
     const data = await response.json();
-    return data.candidates[0].content.parts[0].text;
+    return data.content[0].text;
 }
