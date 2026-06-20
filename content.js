@@ -24,8 +24,32 @@
   // P9, P10  = practice (221) ✓
   // PA1      = programming assignment (213) ✗
   function isPracticeQuestion() {
-    const name = getAssessmentName();
-    return /^PQ\d/.test(name) || /^P\d/.test(name);
+    const PRACTICE_RE = /^PQ\d|^P\d|^FQP\d|^ICA\d/;
+
+    // Primary: active nav-link (original selector)
+    const navActive = document.querySelector('.nav-item.active .nav-link');
+    if (navActive && PRACTICE_RE.test(navActive.innerText.trim())) return true;
+
+    // Fallback 1: any element with aria-current="page" (some PL layouts use this)
+    const ariaCurrent = document.querySelector('[aria-current="page"]');
+    if (ariaCurrent && PRACTICE_RE.test(ariaCurrent.innerText.trim())) return true;
+
+    // Fallback 2: active list-group item (sidebar variant)
+    const listActive = document.querySelector('.list-group-item.active');
+    if (listActive && PRACTICE_RE.test(listActive.innerText.trim())) return true;
+
+    // Fallback 3: breadcrumb items
+    document.querySelectorAll('.breadcrumb-item').forEach(el => {
+      if (PRACTICE_RE.test(el.innerText.trim())) return true; // exits forEach only
+    });
+    for (const el of document.querySelectorAll('.breadcrumb-item')) {
+      if (PRACTICE_RE.test(el.innerText.trim())) return true;
+    }
+
+    // Fallback 4: page title  (e.g. "PQ9.5 - CPSC 212")
+    if (/\bPQ\d|\bP\d|\bFQP\d|\bICA\d/.test(document.title)) return true;
+
+    return false;
   }
 
   // Get course name from navbar (e.g. "CPSC 221")
@@ -242,13 +266,10 @@
       return false;
     }
 
-    // Extension icon clicked — open side panel
-    if (msg.action === 'togglePanel') {
-      if (!document.querySelector('.question-body')) {
-        showTeaseMessage();
-      } else {
-        chrome.runtime.sendMessage({ type: 'OPEN_SIDE_PANEL' });
-      }
+    // Background asks content script to show the "practice only" tease
+    if (msg.action === 'showTease') {
+      showTeaseMessage();
+      return false;
     }
 
     return false;
@@ -276,23 +297,19 @@
         position: fixed;
         bottom: 24px;
         right: 24px;
+        width: 46px;
+        height: 46px;
         background: #4a6cf7;
-        color: white;
-        padding: 12px 20px;
-        border-radius: 12px;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        font-size: 14px;
-        font-weight: 600;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         cursor: pointer;
         box-shadow: 0 4px 12px rgba(74, 108, 247, 0.4);
         z-index: 2147483647;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      ">
-        <span style="font-size: 18px;">📝</span>
-        <span>Journal This Mistake</span>
-      </div>
+        font-size: 22px;
+        user-select: none;
+      " title="Journal this mistake">✏️</div>
     `;
 
     btn.addEventListener('click', () => {
@@ -367,12 +384,52 @@
   }
 
   // ========================================================================
+  // VARIANT BADGE HIGHLIGHTING
+  // ========================================================================
+
+  function highlightVariantsWithEntries() {
+    const allBadges = document.querySelectorAll('a.badge.text-bg-secondary, a.badge.text-bg-info');
+    if (!allBadges.length) return;
+
+    const course   = getCourse();
+    const module   = getAssessmentName();
+    const question = getQuestionTitle();
+
+    chrome.storage.local.get(['pl_journals'], result => {
+      const journals = result['pl_journals'] || [];
+      const keySet = new Set(journals.map(e => e.key));
+
+      allBadges.forEach((badge, index) => {
+        const variantLabel = `Variant ${index + 1}`;
+        const key = [course, module, question, variantLabel].filter(Boolean).join('||');
+
+        // Remove any previously injected dot to avoid duplicates on re-runs
+        const existing = badge.querySelector('.pl-journal-dot');
+        if (existing) existing.remove();
+
+        if (keySet.has(key)) {
+          badge.style.setProperty('background-color', '#f5c842', 'important');
+          badge.style.setProperty('color',            '#1a1a1a', 'important');
+          badge.style.setProperty('font-weight',      '700',     'important');
+          badge.title = '📓 You have a journal entry for this variant';
+        } else {
+          badge.style.removeProperty('background-color');
+          badge.style.removeProperty('color');
+          badge.style.removeProperty('font-weight');
+          badge.title = '';
+        }
+      });
+    });
+  }
+
+  // ========================================================================
   // RUN ON PAGE LOAD + WATCH FOR NAVIGATION
   // ========================================================================
 
   // Wait for PrairieLearn to finish rendering
   setTimeout(() => {
     injectJournalButton();
+    highlightVariantsWithEntries();
   }, 1000);
 
   // Watch for URL changes (SPA navigation) and DOM updates
@@ -383,13 +440,22 @@
       setTimeout(() => {
         sendContext();
         injectJournalButton();
+        highlightVariantsWithEntries();
       }, 600);
     } else {
       setTimeout(() => {
         injectJournalButton();
+        highlightVariantsWithEntries();
       }, 500);
     }
   });
   observer.observe(document.body, { childList: true, subtree: true });
+
+  // Re-highlight badges after a new entry is saved
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg.type === 'ENTRY_SAVED_ACK') {
+      setTimeout(highlightVariantsWithEntries, 200);
+    }
+  });
 
 })();

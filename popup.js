@@ -1,12 +1,10 @@
 import { CONFIG } from './config.js';
 
-const SYSTEM_PROMPT = `You are a Socratic teaching assistant for a university STEM course.
-Your job is to help students understand their mistakes WITHOUT giving away the answer.
-Ask guiding questions that lead the student to discover the correct reasoning themselves.
+const SYSTEM_PROMPT = `Use the question, the correct answer, the reflection provided by the user and provide an
+explanation 
 
 FORMATTING RULES:
 - You may use basic markdown: bold (**text**), numbered lists, bullet lists.
-- Do NOT use LaTeX or dollar signs for math. Write math in plain English (e.g., "N of h equals 1 plus N of h minus 1").
 - Keep your response concise and conversational.
 - If a screenshot of the question is provided, use it to better understand the problem context.`;
 
@@ -23,7 +21,8 @@ Student Answer: ${questionData.myAnswer}
 Correct Answer: ${questionData.correctAnswer}
 Student Logic: "${questionData.myReasoning}"
 
-Identify the gaps in the student's understanding and explain how to find the correct answer using the Socratic method.`
+Identify the gaps in the student's understanding and explain how to find the correct answer using the Socratic method 
+and limit explanation to maximum 400 words.`
     };
 
     // Build content array — prepend screenshot image block if provided
@@ -65,7 +64,7 @@ Identify the gaps in the student's understanding and explain how to find the cor
         return feedback || "The TA is pondering... try rephrasing your reflection.";
     } catch (error) {
         console.error("AI Error:", error);
-        return "The brain is offline. Check your API key in config.js.";
+        return "The brain is offline. Check your API key ";
     }
 }
 

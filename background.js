@@ -5,9 +5,31 @@
 // ---------------------------------------------------------------------------
 // 1. Open the side panel when the extension icon is clicked
 // ---------------------------------------------------------------------------
-chrome.action.onClicked.addListener((tab) => {
-  chrome.tabs.sendMessage(tab.id, { action: "togglePanel" });
-  // Capture while activeTab permission is fresh
+chrome.action.onClicked.addListener(async (tab) => {
+  // Ask the content script whether this is a practice module.
+  // If the content script isn't running (non-PL page) the sendMessage rejects — bail silently.
+  let isPractice = false;
+  try {
+    const check = await chrome.tabs.sendMessage(tab.id, { type: 'CHECK_PAGE' });
+    isPractice = check?.isPractice || false;
+  } catch (e) {
+    return; // not a PL page — do nothing
+  }
+
+  if (!isPractice) {
+    // Tell the content script to show the "practice questions only" tease
+    chrome.tabs.sendMessage(tab.id, { action: 'showTease' }).catch(() => {});
+    return;
+  }
+
+  // It's a practice page — open the panel
+  try {
+    await chrome.sidePanel.open({ tabId: tab.id });
+  } catch (e) {
+    console.warn('Prairie Journal: could not open side panel', e);
+  }
+
+  // Capture screenshot while activeTab permission is fresh
   chrome.tabs.captureVisibleTab(tab.windowId, { format: 'jpeg', quality: 82 }, dataUrl => {
     if (!chrome.runtime.lastError && dataUrl) {
       chrome.storage.local.set({ pl_temp_screenshot: dataUrl });

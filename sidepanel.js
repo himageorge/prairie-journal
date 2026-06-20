@@ -4,8 +4,11 @@
 // Communicates with background.js via chrome.runtime.sendMessage.
 // Persists data with chrome.storage.local.
 // ---------------------------------------------------------------------------
-import { getSocraticExplanation } from './popup.js';
+import { getSocraticExplanation, sendChatMessage } from './popup.js';
 
+// TODO: flashcard generation does not render latex, prolly download mathjax? and it should
+// render when exported to anki
+// how many flashcards to generate?
 
 // ════════════════════════════════════════════════════════════════════════════
 // CONSTANTS & STATE
@@ -17,6 +20,8 @@ let _pageContext   = {};   // injected by content script via background
 let _screenshot    = null; // auto-captured screenshot (used by AI only, not stored)
 let _aiFeedback    = null; // cached AI response for current reasoning
 let _questionData  = {};   // Q&A from content script, cached for saveEntry
+let _chatHistory      = [];   // conversation history for follow-up messages
+let _initialReflection = ''; // first reflection text (textarea is cleared after send)
 
 // ════════════════════════════════════════════════════════════════════════════
 // MARKDOWN → HTML
@@ -31,7 +36,7 @@ function escHtml(s) {
 function markdownToHtml(text) {
   if (!text) return '';
 
-  // Split out triple-backtick code blocks first
+  // Sblit out triple-backtick code blocks first
   const segments = text.split(/(```[\s\S]*?```)/g);
   return segments.map((seg, i) => {
     if (i % 2 === 1) {
@@ -63,10 +68,15 @@ function renderMarkdownLines(text) {
 
   for (const raw of lines) {
     const line = raw.trimEnd();
+    const headingMatch = line.match(/^(#{1,6})\s+(.*)/);
     const olMatch = line.match(/^(\d+)\.\s+(.*)/);
     const ulMatch = line.match(/^[-*]\s+(.*)/);
 
-    if (olMatch) {
+    if (headingMatch) {
+      flush();
+      const level = headingMatch[1].length;
+      out.push(`<h${level}>${inline(headingMatch[2])}</h${level}>`);
+    } else if (olMatch) {
       if (inUl) { out.push('</ul>'); inUl = false; }
       if (!inOl) { out.push('<ol>'); inOl = true; }
       out.push(`<li>${inline(olMatch[2])}</li>`);
@@ -154,6 +164,58 @@ function applyContext(ctx) {
   setChip('ctxQuestion', ctx.question, 'Question');
   setChip('ctxVariant',  ctx.variant,  'Variant');
 
+  restoreSavedConversation(ctx);
+}
+
+// Tracks which variant key we've already restored so double context-fires don't duplicate messages.
+let _restoredForKey = null;
+
+async function restoreSavedConversation(ctx) {
+  const key = journalKey(
+    ctx.course   || '',
+    ctx.module   || '',
+    ctx.question || '',
+    ctx.variant  || ''
+  );
+
+  if (key === _restoredForKey) return; // same variant already handled
+  _restoredForKey = key;
+
+  // Clear chat state for the new context
+  const chatMessages = document.getElementById('chatMessages');
+  const aiBox        = document.getElementById('aiResponseBox');
+  if (chatMessages) chatMessages.innerHTML = '';
+  if (aiBox)        aiBox.style.display = 'none';
+  _chatHistory       = [];
+  _aiFeedback        = null;
+  _initialReflection = '';
+
+  if (!key) return;
+
+  const journals = await loadJournals();
+  const entry = journals.find(e => e.key === key);
+  if (!entry) return;
+
+  // Restore session state so follow-up messages use the saved history
+  _initialReflection = entry.reflection || '';
+  _aiFeedback        = entry.aiFeedback || null;
+  if (entry.reflection && entry.aiFeedback) {
+    _chatHistory = [
+      { role: 'user',      content: entry.reflection },
+      { role: 'assistant', content: entry.aiFeedback }
+    ];
+  }
+
+  // Render previous conversation in the chat UI
+  const divider = document.createElement('div');
+  divider.className   = 'session-divider';
+  divider.textContent = `continuing from ${entry.timestamp || 'previous session'}`;
+  chatMessages.appendChild(divider);
+
+  if (entry.reflection) appendChatMessage('user',      entry.reflection);
+  if (entry.aiFeedback) appendChatMessage('assistant', entry.aiFeedback);
+
+  if (aiBox) aiBox.style.display = 'flex';
 }
 
 
@@ -183,60 +245,106 @@ function loadCapturedScreenshot() {
 // SAVE ENTRY
 // ════════════════════════════════════════════════════════════════════════════
 
+function appendChatMessage(role, text) {
+  const container = document.getElementById('chatMessages');
+  const aiBox = document.getElementById('aiResponseBox');
+
+  const msg = document.createElement('div');
+  msg.className = `chat-msg ${role}`;
+
+  const label = document.createElement('div');
+  label.className = 'chat-msg-label';
+  label.textContent = role === 'user' ? 'You' : 'TA';
+
+  const body = document.createElement('div');
+  body.className = 'chat-msg-body';
+  body.innerHTML = markdownToHtml(text);
+
+  msg.appendChild(label);
+  msg.appendChild(body);
+  container.appendChild(msg);
+
+  aiBox.style.display = 'flex';
+  aiBox.scrollTop = aiBox.scrollHeight;
+}
+
 async function runAI() {
-  const reflection = document.getElementById('inputReflection').value.trim();
+  const ta = document.getElementById('inputReflection');
+  const reflection = ta.value.trim();
   if (!reflection) return;
 
-  showToast(' TA is thinking...');
-
   const { course, question } = getContextValues();
+  const isFirstMessage = _chatHistory.length === 0;
 
-  _questionData = {};
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab?.id) {
-      _questionData = await chrome.tabs.sendMessage(tab.id, { type: 'EXTRACT_QUESTION' });
-    }
-  } catch (e) { console.warn(e); }
-
-  _aiFeedback = await getSocraticExplanation({
-    course: course || "General",
-    questionTitle: question || "Unknown Question",
-    questionText: _questionData?.questionText || "No question text found",
-    myAnswer: _questionData?.myAnswerText || "No answer provided",
-    correctAnswer: _questionData?.correctAnswer || "Not available",
-    myReasoning: reflection,
-    screenshot: _screenshot || null
-  });
-
-  const aiDisplay = document.getElementById('aiText');
-  const aiBox = document.getElementById('aiResponseBox');
-  if (aiDisplay && aiBox) {
-    aiDisplay.innerHTML = markdownToHtml(_aiFeedback);
-    aiBox.style.display = 'block';
+  if (isFirstMessage) {
+    _questionData = {};
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tab?.id) {
+        _questionData = await chrome.tabs.sendMessage(tab.id, { type: 'EXTRACT_QUESTION' });
+      }
+    } catch (e) { console.warn(e); }
   }
 
-  showToast('AI feedback ready!');
+  // Show user message and clear input
+  appendChatMessage('user', reflection);
+  ta.value = ''; autoResize(ta);
+  document.getElementById('renderReflection').innerHTML = '';
+
+  showToast('TA is thinking...');
+
+  if (isFirstMessage) _initialReflection = reflection;
+
+  let response;
+  if (isFirstMessage) {
+    const initialApiMsg = `Course: ${course || "General"}
+Topic: ${question || "Unknown Question"}
+Question: ${_questionData?.questionText || "No question text found"}
+Student Answer: ${_questionData?.myAnswerText || "No answer provided"}
+Correct Answer: ${_questionData?.correctAnswer || "Not available"}
+Student Logic: "${reflection}"
+
+Identify the gaps in the student's understanding and explain how to find the correct answer using the Socratic method.`;
+
+    response = await getSocraticExplanation({
+      course: course || "General",
+      questionTitle: question || "Unknown Question",
+      questionText: _questionData?.questionText || "No question text found",
+      myAnswer: _questionData?.myAnswerText || "No answer provided",
+      correctAnswer: _questionData?.correctAnswer || "Not available",
+      myReasoning: reflection,
+      screenshot: _screenshot || null
+    });
+
+    _chatHistory.push({ role: 'user', content: initialApiMsg });
+    _chatHistory.push({ role: 'assistant', content: response });
+  } else {
+    response = await sendChatMessage(_chatHistory, reflection);
+    _chatHistory.push({ role: 'user', content: reflection });
+    _chatHistory.push({ role: 'assistant', content: response });
+  }
+
+  appendChatMessage('assistant', response);
+  _aiFeedback = response;
+  showToast('TA responded!');
 }
 
 async function saveEntry() {
-  const reflection = document.getElementById('inputReflection').value.trim();
-  const quickNote  = document.getElementById('inputNote').value.trim();
+  const pendingReflection = document.getElementById('inputReflection').value.trim();
+  const quickNote = document.getElementById('inputNote').value.trim();
 
-  if (!reflection) {
-    showToast('⚠️ Please write a reflection first.');
+  // Saving requires an explanation already obtained via Enter — never trigger the AI here.
+  if (!_chatHistory.length) {
+    showToast(pendingReflection ? 'Enter to get the explanation before saving.': 'Please write a reflection first.');
     return;
   }
-
-  // Run AI now if the user skipped Enter
-  if (!_aiFeedback) await runAI();
 
   const { course, module, question, variant } = getContextValues();
 
   const entry = {
     key: journalKey(course, module, question, variant),
     course, module, question, variant,
-    reflection, quickNote, aiFeedback: _aiFeedback,
+    reflection: _initialReflection, quickNote, aiFeedback: _aiFeedback,
     url: _pageContext.url || _questionData?.url || '',
     timestamp: new Date().toLocaleString()
   };
@@ -257,9 +365,14 @@ function clearForm() {
   taN.value = ''; autoResize(taN);
   document.getElementById('renderReflection').innerHTML = '';
   document.getElementById('renderNote').innerHTML = '';
-  _aiFeedback = null;
-  _screenshot = null;
-  _questionData = {};
+  _aiFeedback        = null;
+  _screenshot        = null;
+  _questionData      = {};
+  _chatHistory       = [];
+  _initialReflection = '';
+  _restoredForKey    = null; // allow re-restoration if user navigates away and back
+  const chatMessages = document.getElementById('chatMessages');
+  if (chatMessages) chatMessages.innerHTML = '';
   const aiBox = document.getElementById('aiResponseBox');
   if (aiBox) aiBox.style.display = 'none';
 }
@@ -339,6 +452,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // General Form Clear Button
   document.getElementById('clearFormBtn').addEventListener('click', clearForm);
+
 
   // Live field setup — transparent textarea over a rendered markdown div
   setupLiveField('inputReflection', 'renderReflection');

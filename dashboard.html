@@ -7,12 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;1,9..144,300&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="dashboard.css">
-<script>
-  window.MathJax = {
-    tex: { inlineMath: [['$','$'], ['\\(','\\)']] },
-    options: { skipHtmlTags: ['script','noscript','style','textarea','pre'] }
-  };
-</script>
+<script src="mathjax-config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" defer></script>
 </head>
 <body>
@@ -181,7 +176,6 @@
       </div>
 <div class="fc-footer">
         <button class="fc-anki-btn" id="fcExport">Export to Anki (.txt)</button>
-        <div class="fc-anki-hint">Import in Anki: File → Import → select the .txt file</div>
       </div>
     </div>
   </div>

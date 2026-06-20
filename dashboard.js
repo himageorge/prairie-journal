@@ -51,9 +51,14 @@ function renderMdLines(text) {
 
   for (const raw of lines) {
     const line = raw.trimEnd();
+    const heading = line.match(/^(#{1,6})\s+(.*)/);
     const ol = line.match(/^(\d+)\.\s+(.*)/);
     const ul = line.match(/^[-*]\s+(.*)/);
-    if (ol) {
+    if (heading) {
+      flush();
+      const level = heading[1].length;
+      out.push(`<h${level}>${inline(heading[2])}</h${level}>`);
+    } else if (ol) {
       if (inUl) { out.push('</ul>'); inUl = false; }
       if (!inOl) { out.push('<ol>'); inOl = true; }
       out.push(`<li>${inline(ol[2])}</li>`);

@@ -259,6 +259,10 @@ html, body {
   transition: border-color var(--transition);
 }
 .live-field:focus-within { border-color: var(--accent); }
+/* While typing, show the raw textarea text so the caret always matches what's on screen;
+   the rendered markdown div underneath is swapped in only once the field loses focus. */
+.live-field:focus-within .live-render { opacity: 0; }
+.live-field:focus-within .live-textarea { color: var(--text) !important; }
 .live-render {
   position: absolute; inset: 0;
   padding: 9px 11px;
@@ -292,34 +296,75 @@ html, body {
 .live-textarea::placeholder { color: var(--text3) !important; opacity: 0.7; }
 .live-textarea.short { min-height: 44px; }
 
+/* ── SESSION DIVIDER (chat continuation header) ── */
+.session-divider {
+  text-align: center;
+  font-size: 9px; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--text3); padding: 6px 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.session-divider::before, .session-divider::after {
+  content: ''; flex: 1; height: 1px; background: var(--border2);
+}
+
 /* ── AI RESPONSE MARKDOWN ── */
-#aiText p { margin: 0 0 8px; }
-#aiText p:last-child { margin-bottom: 0; }
-#aiText ol, #aiText ul { margin: 6px 0 10px 18px; padding: 0; }
-#aiText li { margin-bottom: 5px; }
-#aiText strong { font-weight: 600; color: var(--text); }
-#aiText em { font-style: italic; }
-#aiText code { font-family: var(--mono); background: rgba(0,0,0,0.06); padding: 1px 4px; border-radius: 3px; font-size: 11px; }
-#aiText br { display: block; margin: 4px 0; content: ''; }
+.chat-msg-body p { margin: 0 0 8px; }
+.chat-msg-body p:last-child { margin-bottom: 0; }
+.chat-msg-body h1, .chat-msg-body h2, .chat-msg-body h3,
+.chat-msg-body h4, .chat-msg-body h5, .chat-msg-body h6 {
+  margin: 8px 0 4px; font-size: 13px; font-weight: 700; color: var(--text);
+}
+.chat-msg-body h1:first-child, .chat-msg-body h2:first-child, .chat-msg-body h3:first-child,
+.chat-msg-body h4:first-child, .chat-msg-body h5:first-child, .chat-msg-body h6:first-child { margin-top: 0; }
+.chat-msg-body ol, .chat-msg-body ul { margin: 6px 0 10px; padding-left: 1.4em; }
+.chat-msg-body li { margin-bottom: 5px; }
+.chat-msg-body strong { font-weight: 600; color: var(--text); }
+.chat-msg-body em { font-style: italic; }
+.chat-msg-body code { font-family: var(--mono); background: rgba(0,0,0,0.06); padding: 1px 4px; border-radius: 3px; font-size: 11px; }
+.chat-msg-body br { display: block; margin: 4px 0; content: ''; }
+
+/* ── CHAT MESSAGES ── */
+#aiResponseBox {
+  margin: 0 14px 14px;
+  max-height: 340px;
+  overflow-y: auto;
+  flex-direction: column;
+  gap: 8px;
+  display: none;
+}
+#aiResponseBox::-webkit-scrollbar { width: 4px; }
+#aiResponseBox::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.chat-msg {
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.chat-msg.user {
+  background: var(--accent-lt);
+  border: 1px solid rgba(74,124,89,0.2);
+}
+.chat-msg.assistant {
+  background: var(--gold-lt);
+  border: 1px solid var(--gold);
+}
+.chat-msg-label {
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.chat-msg.user .chat-msg-label { color: var(--accent); }
+.chat-msg.assistant .chat-msg-label { color: #a07828; }
 </style>
 </head>
 <body>
 
 <div class="shell" id="mainView">
 
-  <!-- ── TITLEBAR ── -->
-  <div class="titlebar">
-    <div class="logo-mark">PL</div>
-    <div class="logo-text">
-      <span class="logo-name">PL Journal</span>
-      <span class="logo-sub">mistake tracker</span>
-    </div>
-    <div class="sync-dot" id="syncDot" title="Storage active"></div>
-  </div>
-
   <!-- ── CONTEXT BAR (auto-filled from page) ── -->
   <div class="context-bar">
-    <div class="context-bar-label">Current Page</div>
     <div class="context-chips">
       <span class="ctx-chip" id="ctxCourse">Course —</span>
       <span class="ctx-chip" id="ctxModule">Module —</span>
@@ -331,6 +376,7 @@ html, body {
 
   <!-- ══════════════════════════════════════════ WRITE TAB ══ -->
   <div class="tab-body active" id="tab-write">
+
     <div class="write-section">
 
       <div class="divider"></div>
@@ -361,18 +407,18 @@ html, body {
 
 
     </div><!-- /write-section -->
-    <div id="aiResponseBox" style="margin: 0 14px 14px; padding: 12px; background: var(--gold-lt); border: 1px solid var(--gold); border-radius: var(--radius); display: none;">
-<div id="aiText" style="font-size: 12px; line-height: 1.7; color: var(--text);"></div>
-    </div>
-
-    <!-- ACTION BUTTONS -->
-    <div class="action-row">
-      <button class="btn btn-secondary" id="clearFormBtn">Clear</button>
-      <button class="btn btn-primary"   id="saveBtn">Save</button>
-      <button class="btn btn-secondary" id="dashBtn">Dashboard →</button>
+    <div id="aiResponseBox">
+      <div id="chatMessages"></div>
     </div>
 
   </div><!-- /tab-write -->
+
+  <!-- ACTION BUTTONS — outside tab-body so always visible at bottom -->
+  <div class="action-row">
+    <button class="btn btn-secondary" id="clearFormBtn">Clear</button>
+    <button class="btn btn-primary"   id="saveBtn">Save</button>
+    <button class="btn btn-secondary" id="dashBtn">Dashboard →</button>
+  </div>
 
 </div><!-- /mainView -->
 
