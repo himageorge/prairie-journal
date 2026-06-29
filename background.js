@@ -5,28 +5,33 @@
 // ---------------------------------------------------------------------------
 // 1. Open the side panel when the extension icon is clicked
 // ---------------------------------------------------------------------------
+// Mirrors content.js's title-based practice-question fallback (PRACTICE_RE).
+// We use tab.title here (not a message round trip to the content script) so
+// the practice check stays synchronous — see note below on sidePanel.open().
+const PRACTICE_TITLE_RE = /\bPQ\d|\bP\d|\bFQP\d|\bICA\d/;
+
 chrome.action.onClicked.addListener(async (tab) => {
-  // Ask the content script whether this is a practice module.
-  // If the content script isn't running (non-PL page) the sendMessage rejects — bail silently.
-  let isPractice = false;
-  try {
-    const check = await chrome.tabs.sendMessage(tab.id, { type: 'CHECK_PAGE' });
-    isPractice = check?.isPractice || false;
-  } catch (e) {
-    return; // not a PL page — do nothing
-  }
+  const isPL =
+    tab.url &&
+    (tab.url.includes('prairielearn.com') || tab.url.includes('prairielearn.org'));
+  if (!isPL) return; // not a PL page — do nothing
+
+  const isPractice = !!(tab.title && PRACTICE_TITLE_RE.test(tab.title));
 
   if (!isPractice) {
-    // Tell the content script to show the "practice questions only" tease
     chrome.tabs.sendMessage(tab.id, { action: 'showTease' }).catch(() => {});
     return;
   }
 
-  // It's a practice page — open the panel
+  // Open the panel synchronously within the click's user-gesture window.
+  // Any awaited work before this call (e.g. messaging the content script)
+  // can cause chrome.sidePanel.open() to silently fail — that was the bug,
+  // which is why the practice check above uses tab.title instead.
   try {
     await chrome.sidePanel.open({ tabId: tab.id });
   } catch (e) {
     console.warn('Prairie Journal: could not open side panel', e);
+    return;
   }
 
   // Capture screenshot while activeTab permission is fresh
@@ -38,29 +43,11 @@ chrome.action.onClicked.addListener(async (tab) => {
 });
 
 // ---------------------------------------------------------------------------
-// 2. Auto-enable the side panel only on PrairieLearn tabs
-//    (restricts the action button to PL pages) -> not working!!!!!!!!!!!!
+// 2. The side panel stays enabled globally (via manifest side_panel.default_path)
+//    so the toolbar icon is never greyed out — gating to practice questions
+//    happens in chrome.action.onClicked below instead of per-tab enable/disable,
+//    which didn't reliably re-fire on PrairieLearn's SPA navigation.
 // ---------------------------------------------------------------------------
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-  if (changeInfo.status !== 'complete') return;
-
-  const isPL =
-    tab.url &&
-    (tab.url.includes('prairielearn.com') || tab.url.includes('prairielearn.org'));
-
-  if (isPL) {
-    // Make the side panel available for this specific tab
-    await chrome.sidePanel.setOptions({
-      tabId,
-      path: 'sidepanel.html',
-      enabled: true,
-    });
-  } else {
-    // Disable the panel on non-PL pages (optional — remove if you want it everywhere)
-    await chrome.sidePanel.setOptions({ tabId, enabled: false });
-  }
-});
-
 
 // ---------------------------------------------------------------------------
 // 3. Message router — relay messages between content script and side panel
@@ -120,7 +107,7 @@ chrome.runtime.onMessage.addListener((message, sender) => {
 });
 
 // ---------------------------------------------------------------------------
-// 3. go to dashboard
+// 4. go to dashboard
 // ---------------------------------------------------------------------------
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({

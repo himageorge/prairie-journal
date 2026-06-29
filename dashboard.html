@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PrairieLearn Tracker</title>
+<title>PrairieJournal</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;1,9..144,300&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="dashboard.css">
 <script src="mathjax-config.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" defer></script>
+<script src="vendor/mathjax-tex-svg.js" defer></script>
 </head>
 <body>
 
@@ -16,13 +16,8 @@
 
   <!-- ═══════════════════════════════ TITLEBAR ═══════════════════════════════ -->
   <header class="titlebar">
-    <div class="titlebar-logo">
-      <div class="logo-mark">PL</div>
-      <div>
-        <div class="logo-name">PrairieLearn Tracker</div>
-        <div class="logo-sub">mistake journal · v1.0</div>
-      </div>
-    </div>
+    <div class="titlebar-name">PrairieJournal</div>
+
     <div class="titlebar-sep"></div>
     <nav class="titlebar-tabs">
       <div class="t-tab active" data-tab="courses">Courses</div>
@@ -30,11 +25,9 @@
       <div class="t-tab" data-tab="journal">Journal</div>
     </nav>
     <div class="titlebar-right">
-      <div class="sync-status">
-        <span class="sync-dot"></span>
-        <span id="syncStatus">Loading...</span>
-      </div>
-      <button class="tb-btn" id="syncBtn">↻ Sync</button>
+      <button class="tb-btn" id="exportBtn">⬇ Export</button>
+      <button class="tb-btn" id="importBtn">⬆ Import</button>
+      <input type="file" id="importFile" accept="application/json" hidden>
     </div>
   </header>
 
@@ -47,25 +40,19 @@
       <div class="panel visible" id="panel-courses">
         <div class="panel-header">
           <div class="panel-title">My Courses</div>
-          <div class="panel-sub" id="courses-panel-sub">Loading...</div>
         </div>
 
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="val gold" id="stat-starred">0</div>
-            <div class="lbl">Starred Questions</div>
+        <div class="courses-split">
+          <div class="courses-half">
+            <div class="section-title">Active Courses</div>
+            <div class="courses-half-body" id="courses-list-active"></div>
           </div>
-          <div class="stat-card">
-            <div class="val green" id="stat-journal">0</div>
-            <div class="lbl">Journal Entries</div>
-          </div>
-          <div class="stat-card">
-            <div class="val" id="stat-courses" style="color:var(--text)">0</div>
-            <div class="lbl">Active Courses</div>
+
+          <div class="courses-half" id="past-courses-section">
+            <div class="section-title">Past Courses</div>
+            <div class="courses-half-body" id="courses-list-past"></div>
           </div>
         </div>
-
-        <div id="courses-list"></div>
 
       </div><!-- /panel-courses -->
 
@@ -95,9 +82,9 @@
 <div id="journalPanel" style="
   display:none;
   position:fixed;
-  top:44px; right:0;
+  top:60px; right:0;
   width:450px; min-width:320px; max-width:80vw;
-  height:calc(100vh - 44px);
+  height:calc(100vh - 60px);
   background:var(--panel);
   border-left:1px solid var(--border);
   padding:20px 20px 20px 26px;
@@ -136,7 +123,7 @@
   </div>
 
   <div class="jp-tags" id="jpTags"></div>
-  <div class="jp-notes-label">Quick Note</div>
+  <div class="jp-notes-label">Notes</div>
   <div class="jp-notes" id="jpNotes"></div>
 
 </div>
@@ -146,7 +133,7 @@
   <div class="fc-modal">
     <div class="fc-modal-header">
       <div>
-        <div class="fc-modal-title">Flashcards: <span id="fcCourseName"></span></div>
+        <div class="fc-modal-title">Quiz me: <span id="fcCourseName"></span></div>
         <div class="fc-modal-sub" id="fcSub"></div>
       </div>
       <button class="fc-close-btn" id="fcClose">✕ Close</button>
@@ -154,7 +141,7 @@
 
     <div id="fcLoading" class="fc-loading" style="display:none">
       <div class="fc-spinner"></div>
-      <div>Generating flashcards with AI...</div>
+      <div>Generating your quiz </div>
     </div>
 
     <div id="fcError" class="fc-error-box" style="display:none"></div>

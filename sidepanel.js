@@ -121,7 +121,16 @@ function journalKey(course, module, question, variant) {
 
 async function insertEntry(entry) {
   const entries = await loadJournals();
-  entries.unshift(entry);
+  const existingIdx = entries.findIndex(e => e.key === entry.key);
+  if (existingIdx !== -1) {
+    // Update in place rather than duplicating, and bubble it to the front
+    // since it's now the most recently touched entry.
+    const prev = entries[existingIdx];
+    entries.splice(existingIdx, 1);
+    entries.unshift({ ...prev, ...entry });
+  } else {
+    entries.unshift(entry);
+  }
   await saveJournals(entries);
   console.log('Saved entries:', entries);
 }
@@ -190,11 +199,24 @@ async function restoreSavedConversation(ctx) {
   _aiFeedback        = null;
   _initialReflection = '';
 
+  // Clear any leftover quick note from a previous variant
+  const noteTa = document.getElementById('inputNote');
+  if (noteTa) { noteTa.value = ''; autoResize(noteTa); }
+  const noteRender = document.getElementById('renderNote');
+  if (noteRender) noteRender.innerHTML = '';
+
   if (!key) return;
 
   const journals = await loadJournals();
   const entry = journals.find(e => e.key === key);
   if (!entry) return;
+
+  // Restore the previous quick note so re-adding to it updates rather than overwrites
+  if (entry.quickNote && noteTa) {
+    noteTa.value = entry.quickNote;
+    autoResize(noteTa);
+    if (noteRender) noteRender.innerHTML = markdownToHtml(entry.quickNote);
+  }
 
   // Restore session state so follow-up messages use the saved history
   _initialReflection = entry.reflection || '';

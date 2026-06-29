@@ -2,8 +2,11 @@
 import { CONFIG } from './config.js';
 
 const STORAGE_KEY = 'pl_journals';
+const COURSE_META_KEY = 'pl_course_meta';
+const TERM_OPTIONS = ['Winter T1', 'Winter T2', 'Summer T1', 'Summer T2'];
 let _allEntries = [];
 let _grouped    = {};
+let _courseMeta = {};
 
 // Flashcard state
 let _fcCards   = [];
@@ -100,55 +103,75 @@ function groupEntries(entries) {
 }
 
 // ─── LOAD & RENDER ───
+// Course metadata (active/past, term, year) is loaded once at startup via
+// loadCourseMetaThenRender(). After that the dashboard is the sole writer of
+// it, so routine reloads (sync button, window focus, storage sync from the
+// side panel) only refetch journal entries — re-fetching course meta here
+// would race against in-flight setCourseMeta() writes and could clobber a
+// just-made term/year/status edit with stale data before it saves.
 function loadAndRender() {
   chrome.storage.local.get([STORAGE_KEY], result => {
     _allEntries = (result[STORAGE_KEY] || []).slice();
     _grouped    = groupEntries(_allEntries);
 
-    renderStats(_allEntries, _grouped);
     renderCoursesPanel(_grouped);
     renderStarredPanel(_allEntries);
     renderJournalPanel(_allEntries);
-
-    const n = _allEntries.length;
-    document.getElementById('syncStatus').textContent =
-      n === 0 ? 'No entries yet' : `${n} entr${n !== 1 ? 'ies' : 'y'} loaded`;
   });
 }
 
-// ─── STATS ───
-function renderStats(entries, grouped) {
-  const wrongEl = document.getElementById('stat-wrong');
-  if (wrongEl) wrongEl.textContent = entries.length;
-  document.getElementById('stat-courses').textContent = Object.keys(grouped).length;
-  document.getElementById('stat-starred').textContent = entries.filter(e => e.starred).length;
-  document.getElementById('stat-journal').textContent = entries.length;
-  const n = entries.length, c = Object.keys(grouped).length;
-  document.getElementById('courses-panel-sub').textContent =
-    `${c} course${c !== 1 ? 's' : ''} · ${n} journal entr${n !== 1 ? 'ies' : 'y'} tracked`;
+function loadCourseMetaThenRender() {
+  chrome.storage.local.get([COURSE_META_KEY], result => {
+    _courseMeta = result[COURSE_META_KEY] || {};
+    loadAndRender();
+  });
+}
+
+// ─── COURSE META (active/past status + term/year) ───
+function getCourseMeta(course) {
+  const meta = _courseMeta[course] || {};
+  return { status: meta.status || 'active', term: meta.term || '', year: meta.year || '' };
+}
+
+function setCourseMeta(course, patch) {
+  _courseMeta[course] = { ...getCourseMeta(course), ...patch };
+  chrome.storage.local.set({ [COURSE_META_KEY]: _courseMeta });
 }
 
 // ─── COURSES PANEL ───
 function renderCoursesPanel(grouped) {
-  const container = document.getElementById('courses-list');
-  if (!container) return;
+  const activeContainer = document.getElementById('courses-list-active');
+  const pastContainer   = document.getElementById('courses-list-past');
+  if (!activeContainer || !pastContainer) return;
+
   if (Object.keys(grouped).length === 0) {
-    container.innerHTML = `<div class="empty-state">
+    activeContainer.innerHTML = `<div class="empty-state">
       <div class="empty-icon">📭</div>
       <div class="empty-title">No entries yet</div>
       <div class="empty-sub">Open the extension on a PrairieLearn question and record your wrong answers.</div>
     </div>`;
+    pastContainer.innerHTML = `<div class="empty-state-mini">No past courses yet.</div>`;
     return;
   }
-  let html = '';
+
+  const activeCourses = [];
+  const pastCourses = [];
   for (const [course, modules] of Object.entries(grouped)) {
-    const totalWrong = Object.values(modules).flatMap(qs => Object.values(qs)).flat().length;
-    html += buildCourseCard(course, modules, totalWrong);
+    const meta = getCourseMeta(course);
+    (meta.status === 'past' ? pastCourses : activeCourses).push([course, modules]);
   }
-  container.innerHTML = html;
+
+  activeContainer.innerHTML = activeCourses.length
+    ? activeCourses.map(([course, modules]) => buildCourseCard(course, modules)).join('')
+    : `<div class="empty-state-mini">No active courses — mark a course active below, or add a new entry.</div>`;
+
+  pastContainer.innerHTML = pastCourses.length
+    ? pastCourses.map(([course, modules]) => buildCourseCard(course, modules)).join('')
+    : `<div class="empty-state-mini">No past courses yet.</div>`;
 }
 
-function buildCourseCard(course, modules, totalWrong) {
+function buildCourseCard(course, modules) {
+  const totalWrong = Object.values(modules).flatMap(qs => Object.values(qs)).flat().length;
   let modulesHtml = '';
   for (const [mod, questions] of Object.entries(modules)) {
     const modWrong = Object.values(questions).flat().length;
@@ -170,6 +193,12 @@ function buildCourseCard(course, modules, totalWrong) {
     .flatMap(qs => Object.values(qs))
     .filter(entries => entries.length >= 3).length;
 
+  const meta = getCourseMeta(course);
+  const termOptions = ['', ...TERM_OPTIONS].map(t =>
+    `<option value="${escHtml(t)}" ${meta.term === t ? 'selected' : ''}>${t || 'Term'}</option>`
+  ).join('');
+  const isPast = meta.status === 'past';
+
   return `
   <div class="course-overview-card">
     <div class="coc-header" data-action="toggleCourse">
@@ -177,12 +206,19 @@ function buildCourseCard(course, modules, totalWrong) {
       <div class="coc-info">
         <div class="coc-name">${escHtml(course)}</div>
         <div class="coc-meta">
-          <span class="coc-wrong">✗ ${totalWrong} wrong</span>
+          <span class="coc-wrong">${totalWrong} entries</span>
           ${struggleCount > 0 ? `<span class="coc-struggle">${struggleCount} struggle topic${struggleCount !== 1 ? 's' : ''}</span>` : ''}
         </div>
       </div>
-      <button class="fc-gen-btn" data-action="generateFlashcards" data-course="${escHtml(course)}" title="Generate AI flashcards for your struggle topics">
-        ⚡ Flashcards
+      <div class="coc-term-controls">
+        <select class="coc-term-select" data-action="setTerm" data-course="${escHtml(course)}">${termOptions}</select>
+        <input type="number" class="coc-year-input" data-action="setYear" data-course="${escHtml(course)}" placeholder="Year" value="${escHtml(meta.year)}" min="2000" max="2100">
+        <button class="coc-status-btn ${isPast ? '' : 'past-btn'}" data-action="setStatus" data-course="${escHtml(course)}" data-status="${isPast ? 'active' : 'past'}">
+          ${isPast ? 'Mark Active' : 'Mark Past'}
+        </button>
+      </div>
+      <button class="fc-gen-btn" data-action="generateFlashcards" data-course="${escHtml(course)}" title="Quiz me on your struggle topics">
+        ⚡ Quiz me
       </button>
     </div>
     <div class="coc-body">
@@ -203,7 +239,7 @@ function buildQuestionBlock(q, entries) {
         <div class="v-name">${escHtml(variant)}</div>
         <button class="v-star ${isStarred}" data-action="starEntry" data-idx="${idx}" title="Star this variant">★</button>
         <div class="v-date">${escHtml(date)}</div>
-        <div class="v-journal-btn">📝 View entry</div>
+        <button class="v-delete-btn" data-action="deleteEntry" data-idx="${idx}" title="Delete this entry">🗑</button>
       </div>`;
   }
   const count = entries.length;
@@ -226,7 +262,6 @@ function buildQuestionBlock(q, entries) {
             <div class="qd-stat">Wrong attempts: <strong>${entries.length}</strong></div>
           </div>
         </div>
-        <div class="variants-label">Wrong Variants</div>
         <div class="variant-rows">${variantRowsHtml}</div>
       </div>
     </div>`;
@@ -359,11 +394,19 @@ function toggleStar(idx, btnEl) {
 
   if (btnEl) btnEl.classList.toggle('starred', entry.starred);
 
-  const starredCount = _allEntries.filter(e => e.starred).length;
-  const statEl = document.getElementById('stat-starred');
-  if (statEl) statEl.textContent = starredCount;
-
   chrome.storage.local.set({ [STORAGE_KEY]: _allEntries });
+}
+
+// ─── DELETE ───
+function deleteEntry(idx) {
+  const entry = _allEntries[idx];
+  if (!entry) return;
+  const label = entry.variant || entry.question || 'this entry';
+  if (!confirm(`Delete the journal entry for ${label}? This cannot be undone.`)) return;
+
+  _allEntries.splice(idx, 1);
+  chrome.storage.local.set({ [STORAGE_KEY]: _allEntries });
+  closeJournal();
 }
 
 // ─── TOGGLE HELPERS ───
@@ -476,7 +519,7 @@ Return ONLY a JSON array with this exact format — no other text before or afte
     if (!jsonMatch) throw new Error('Unexpected response format from AI');
     const cards = JSON.parse(jsonMatch[0]);
 
-    if (!Array.isArray(cards) || cards.length === 0) throw new Error('No flashcards were generated');
+    if (!Array.isArray(cards) || cards.length === 0) throw new Error('No quiz questions were generated');
 
     openFlashcardModal(course, cards, false);
   } catch (err) {
@@ -503,7 +546,7 @@ function openFlashcardModal(course, cards, loading) {
     loadEl.style.display = 'block';
     viewEl.style.display = 'none';
     errEl.style.display  = 'none';
-    document.getElementById('fcSub').textContent = 'Generating flashcards with AI...';
+    document.getElementById('fcSub').textContent = 'Generating your quiz with AI...';
     return;
   }
 
@@ -580,9 +623,53 @@ function exportToAnki() {
   URL.revokeObjectURL(url);
 }
 
+// ─── BACKUP: EXPORT / IMPORT ───
+function exportBackup() {
+  const payload = {
+    format: 'prairie-journal-backup',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    entries: _allEntries
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `prairie_journal_backup_${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+async function importBackup(file) {
+  let parsed;
+  try {
+    parsed = JSON.parse(await file.text());
+  } catch (e) {
+    alert('Import failed: not valid JSON');
+    return;
+  }
+
+  const incoming = Array.isArray(parsed) ? parsed : parsed.entries;
+  if (!Array.isArray(incoming)) {
+    alert('Import failed: unrecognized backup file');
+    return;
+  }
+
+  const existingKeys = new Set(_allEntries.map(e => e.key));
+  const merged = _allEntries.concat(incoming.filter(e => !existingKeys.has(e.key)));
+  const added  = merged.length - _allEntries.length;
+
+  chrome.storage.local.set({ [STORAGE_KEY]: merged }, () => {
+    loadAndRender();
+    alert(`Imported ${added} new entr${added !== 1 ? 'ies' : 'y'}`);
+  });
+}
+
 // ─── INIT ───
 document.addEventListener('DOMContentLoaded', () => {
-  loadAndRender();
+  loadCourseMetaThenRender();
 
   // Re-render when sidepanel saves a new entry
   chrome.storage.onChanged.addListener((changes, area) => {
@@ -606,10 +693,15 @@ document.addEventListener('DOMContentLoaded', () => {
     setBreadcrumb([name.charAt(0).toUpperCase() + name.slice(1)]);
   });
 
-  // ── SYNC BUTTON ──
-  document.getElementById('syncBtn').addEventListener('click', () => {
-    document.getElementById('syncStatus').textContent = 'Syncing...';
-    loadAndRender();
+  // ── EXPORT / IMPORT BACKUP ──
+  document.getElementById('exportBtn').addEventListener('click', exportBackup);
+
+  const importFile = document.getElementById('importFile');
+  document.getElementById('importBtn').addEventListener('click', () => importFile.click());
+  importFile.addEventListener('change', () => {
+    const file = importFile.files[0];
+    if (file) importBackup(file);
+    importFile.value = '';
   });
 
   // ── CLOSE JOURNAL ──
@@ -688,6 +780,10 @@ document.addEventListener('DOMContentLoaded', () => {
       e.stopPropagation();
       toggleStar(parseInt(el.dataset.idx, 10), el);
     }
+    else if (action === 'deleteEntry') {
+      e.stopPropagation();
+      deleteEntry(parseInt(el.dataset.idx, 10));
+    }
     else if (action === 'openEntry') {
       e.stopPropagation();
       openJournalEntry(el, parseInt(el.dataset.idx, 10));
@@ -695,6 +791,22 @@ document.addEventListener('DOMContentLoaded', () => {
     else if (action === 'generateFlashcards') {
       e.stopPropagation();
       generateFlashcardsForCourse(el.dataset.course);
+    }
+    else if (action === 'setStatus') {
+      e.stopPropagation();
+      setCourseMeta(el.dataset.course, { status: el.dataset.status });
+      renderCoursesPanel(_grouped);
+    }
+  });
+
+  // ── COURSE TERM / YEAR SELECTORS ──
+  document.getElementById('contentArea').addEventListener('change', e => {
+    const el = e.target.closest('[data-action]');
+    if (!el) return;
+    if (el.dataset.action === 'setTerm') {
+      setCourseMeta(el.dataset.course, { term: el.value });
+    } else if (el.dataset.action === 'setYear') {
+      setCourseMeta(el.dataset.course, { year: el.value });
     }
   });
 });
