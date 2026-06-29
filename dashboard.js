@@ -375,8 +375,9 @@ function openJournalEntry(triggerEl, idx) {
     aiSection.style.display = 'none';
   }
 
-  document.getElementById('journalPanel').style.display = 'block';
-  document.querySelector('.main-content').style.marginRight = '380px';
+  const jpPanel = document.getElementById('journalPanel');
+  jpPanel.style.display = 'block';
+  document.querySelector('.main-content').style.marginRight = jpPanel.offsetWidth + 'px';
   setBreadcrumb([entry.course, entry.module, entry.question, entry.variant].filter(Boolean));
 }
 
@@ -723,18 +724,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
   jpHandle.addEventListener('mousedown', e => {
     e.preventDefault();
-    const startX     = e.clientX;
-    const startWidth = jpPanel.offsetWidth;
+    const startX      = e.clientX;
+    const startWidth  = jpPanel.offsetWidth;
+    const mainContent = document.querySelector('.main-content');
+    mainContent.style.transition = 'none';
 
     function onMove(e) {
       const newWidth = Math.max(320, Math.min(window.innerWidth * 0.8, startWidth + (startX - e.clientX)));
       jpPanel.style.width = newWidth + 'px';
-      document.querySelector('.main-content').style.marginRight = newWidth + 'px';
+      mainContent.style.marginRight = newWidth + 'px';
     }
     function onUp() {
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
       jpHandle.style.background = 'transparent';
+      mainContent.style.transition = '';
     }
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
